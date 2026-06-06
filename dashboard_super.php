@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'connection.php'; 
+include 'connection.php'; 
 // Proteksi: hanya super_admin boleh masuk
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'super_admin') {
     header('Location: login.php');
@@ -31,7 +31,10 @@ $active_page = 'dashboard';
             font-family: 'Plus Jakarta Sans', sans-serif;
             background: #f5f7fa;
             color: #1a1a1a;
-            display: flex;
+        }
+
+        .admin-wrapper {
+            width: 100%;
         }
 
         /* === SIDEBAR === */
@@ -135,8 +138,8 @@ $active_page = 'dashboard';
         }
 
         /* === MAIN CONTENT === */
+
         .main-content {
-            flex: 1;
             margin-left: 280px;
             padding: 2rem;
         }
@@ -379,16 +382,6 @@ $active_page = 'dashboard';
                     ?>
                     <p><strong><?= $r['total'] ?></strong> akun</p>
                     <a href="kelola_admin.php" class="btn btn-outline">Kelola</a>
-                </div>
-
-                <div class="card">
-                    <h3>Total Mahasiswa</h3>
-                    <?php
-                    $q = mysqli_query($conn, "SELECT COUNT(*) as total FROM mahasiswa");
-                    $r = mysqli_fetch_assoc($q);
-                    ?>
-                    <p><strong><?= $r['total'] ?></strong> orang</p>
-                    <a href="kelola_mahasiswa.php" class="btn btn-outline">Kelola</a>
                 </div>
 
                 <div class="card">

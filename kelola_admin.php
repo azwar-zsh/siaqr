@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'connection.php';
+include 'connection.php';
 
 // Proteksi: Hanya Super Admin yang bisa mengakses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'super_admin') {
@@ -137,7 +137,6 @@ $active_page = 'admin'; // Untuk highlight menu sidebar
             font-family: 'Plus Jakarta Sans', sans-serif;
             background: #f5f7fa;
             color: #1a1a1a;
-            display: flex;
         }
 
         /* Sidebar */
@@ -150,6 +149,10 @@ $active_page = 'admin'; // Untuk highlight menu sidebar
             position: fixed;
             height: 100vh;
             overflow-y: auto;
+        }
+
+        .admin-wrapper {
+            width: 100%;
         }
 
         .sidebar-header {
@@ -242,7 +245,6 @@ $active_page = 'admin'; // Untuk highlight menu sidebar
 
         /* Main Content */
         .main-content {
-            flex: 1;
             margin-left: 280px;
             padding: 2rem;
         }
@@ -518,15 +520,6 @@ $active_page = 'admin'; // Untuk highlight menu sidebar
                         <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                     </svg>
                     Kelola Admin
-                </a>
-                <a href="kelola_mahasiswa.php" class="nav-item <?= $active_page === 'mahasiswa' ? 'active' : '' ?>">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                        <circle cx="9" cy="7" r="4"/>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    Kelola Mahasiswa
                 </a>
                 <!-- ... tambahkan menu lainnya ... -->
             </nav>
