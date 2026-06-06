@@ -1,0 +1,296 @@
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --orange: #E8670A;
+            --orange-dark: #B5500A;
+            --orange-light: #F97316;
+            --cream: #FEF7EE;
+            --brown: #7C3A10;
+            --text-dark: #1A0F00;
+            --text-muted: #8A7060;
+            --border: #E8D5C4;
+            --white: #FFFFFF;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'DM Sans', sans-serif;
+            background: var(--white);
+        }
+
+        .page-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* ─── LEFT PANEL ─── */
+        .left-panel {
+            flex: 0 0 45%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: #C45A0A;
+        }
+
+        .left-bg {
+            position: absolute;
+            inset: 0;
+            background: 
+                linear-gradient(rgba(249, 115, 22, 0.7) 0%,rgba(157, 67, 0, 0.7) 100%),
+                url('../img/kmps2.jpg') center/cover no-repeat;
+            z-index: 0;            
+        }
+
+        .left-noise {
+            position: absolute;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            z-index: 1;
+            opacity: 0.5;
+        }
+
+        .left-content {
+            position: relative;
+            z-index: 2;
+            text-align: center;
+            padding: 3rem 2.5rem;
+            color: var(--white);
+        }
+
+        .brand-logo {
+            width: 80px;
+            height: 80px;
+            background: rgba(255,255,255,0.15);
+            border: 1.5px solid rgba(255,255,255,0.3);
+            border-radius: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .brand-logo svg {
+            width: 44px;
+            height: 44px;
+        }
+
+        .brand-name {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--white);
+            margin-bottom: 0.75rem;
+        }
+
+        .brand-tagline {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.8);
+            max-width: 320px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .badge-row {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+        }
+
+        .badge {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            font-size: 0.82rem;
+            color: rgba(255,255,255,0.85);
+            font-weight: 500;
+        }
+
+        .badge svg { width: 15px; height: 15px; }
+
+        /* ─── RIGHT PANEL ─── */
+        .right-panel {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 2rem;
+            background: var(--white);
+        }
+
+        .form-card {
+            width: 100%;
+            max-width: 420px;
+        }
+
+        .form-title {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            margin-bottom: 0.35rem;
+            letter-spacing: -0.5px;
+        }
+
+        .form-subtitle {
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            margin-bottom: 2.2rem;
+        }
+
+        .alert-error {
+            background: #FEF2F2;
+            border: 1px solid #FECACA;
+            color: #DC2626;
+            border-radius: 10px;
+            padding: 0.8rem 1rem;
+            font-size: 0.88rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .field-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .field-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .field-label span {
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--text-dark);
+        }
+
+        .forgot-link {
+            font-size: 0.83rem;
+            color: var(--orange);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        .forgot-link:hover { color: var(--orange-dark); }
+
+        .input-wrap {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #B0937A;
+        }
+        .input-icon svg { width: 18px; height: 18px; }
+
+        .input-field {
+            width: 100%;
+            padding: 0.85rem 1rem 0.85rem 2.75rem;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text-dark);
+            background: #FDFAF7;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .input-field::placeholder { color: #C4A88E; }
+
+        .input-field:focus {
+            border-color: var(--orange);
+            box-shadow: 0 0 0 3px rgba(232,103,10,0.12);
+            background: var(--white);
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #B0937A;
+            padding: 4px;
+        }
+        .toggle-password svg { width: 18px; height: 18px; }
+
+        .btn-login {
+            width: 100%;
+            padding: 1rem;
+            background: var(--orange-dark);
+            color: var(--white);
+            border: none;
+            border-radius: 12px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 0.75rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+            box-shadow: 0 4px 14px rgba(181,80,10,0.35);
+        }
+
+        .btn-login:hover {
+            background: var(--brown);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(181,80,10,0.4);
+        }
+
+        .btn-login:active { transform: translateY(0); }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.75rem 0 1.5rem;
+            color: var(--border);
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .register-text {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .register-text a {
+            color: var(--orange);
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 768px) {
+            .left-panel { display: none; }
+            .right-panel { padding: 2rem 1.5rem; }
+            .form-title { font-size: 1.6rem; }
+        }
+
+        @media (max-width: 480px) {
+            .right-panel { padding: 1.5rem 1rem; }
+        }
