@@ -3,9 +3,9 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 08, 2026 at 06:52 AM
--- Server version: 10.4.32-MariaDB
--- PHP Version: 8.2.12
+-- Waktu pembuatan: 08 Jun 2026 pada 10.54
+-- Versi server: 10.4.32-MariaDB
+-- Versi PHP: 8.2.12
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,7 +24,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
--- Table structure for table `admin`
+-- Struktur dari tabel `admin`
 --
 
 CREATE TABLE `admin` (
@@ -37,7 +37,7 @@ CREATE TABLE `admin` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `admin`
+-- Dumping data untuk tabel `admin`
 --
 
 INSERT INTO `admin` (`id_admin`, `nama`, `username`, `password`, `jabatan`, `role`) VALUES
@@ -47,7 +47,7 @@ INSERT INTO `admin` (`id_admin`, `nama`, `username`, `password`, `jabatan`, `rol
 -- --------------------------------------------------------
 
 --
--- Table structure for table `dosen`
+-- Struktur dari tabel `dosen`
 --
 
 CREATE TABLE `dosen` (
@@ -60,7 +60,7 @@ CREATE TABLE `dosen` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `dosen`
+-- Dumping data untuk tabel `dosen`
 --
 
 INSERT INTO `dosen` (`id_dosen`, `nama`, `nip`, `program_studi`, `username`, `password`) VALUES
@@ -69,7 +69,7 @@ INSERT INTO `dosen` (`id_dosen`, `nama`, `nip`, `program_studi`, `username`, `pa
 -- --------------------------------------------------------
 
 --
--- Table structure for table `kehadiran`
+-- Struktur dari tabel `kehadiran`
 --
 
 CREATE TABLE `kehadiran` (
@@ -81,7 +81,7 @@ CREATE TABLE `kehadiran` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `kehadiran`
+-- Dumping data untuk tabel `kehadiran`
 --
 
 INSERT INTO `kehadiran` (`id_kehadiran`, `id_mahasiswa`, `ip_device`, `timestamp_hadir`, `keterangan`) VALUES
@@ -92,7 +92,7 @@ INSERT INTO `kehadiran` (`id_kehadiran`, `id_mahasiswa`, `ip_device`, `timestamp
 -- --------------------------------------------------------
 
 --
--- Table structure for table `kelas`
+-- Struktur dari tabel `kelas`
 --
 
 CREATE TABLE `kelas` (
@@ -105,7 +105,7 @@ CREATE TABLE `kelas` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `mahasiswa`
+-- Struktur dari tabel `mahasiswa`
 --
 
 CREATE TABLE `mahasiswa` (
@@ -119,16 +119,17 @@ CREATE TABLE `mahasiswa` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
--- Dumping data for table `mahasiswa`
+-- Dumping data untuk tabel `mahasiswa`
 --
 
 INSERT INTO `mahasiswa` (`id_mahasiswa`, `nama`, `nim`, `angkatan`, `username`, `password`, `program_studi`) VALUES
-(1, 'steven', '241011078', 2024, '241011078', '241011078', 'ilmu komputer');
+(1, 'steven', '241011078', 2024, '241011078', '241011078', 'ilmu komputer'),
+(7, 'Yos', '241011098', 2024, '24101198', '24101198', 'Sistem Informasi');
 
 -- --------------------------------------------------------
 
 --
--- Table structure for table `mata_kuliah`
+-- Struktur dari tabel `mata_kuliah`
 --
 
 CREATE TABLE `mata_kuliah` (
@@ -142,7 +143,7 @@ CREATE TABLE `mata_kuliah` (
 -- --------------------------------------------------------
 
 --
--- Table structure for table `sesi_absensi`
+-- Struktur dari tabel `sesi_absensi`
 --
 
 CREATE TABLE `sesi_absensi` (
@@ -159,92 +160,92 @@ CREATE TABLE `sesi_absensi` (
 --
 
 --
--- Indexes for table `admin`
+-- Indeks untuk tabel `admin`
 --
 ALTER TABLE `admin`
   ADD PRIMARY KEY (`id_admin`),
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- Indexes for table `dosen`
+-- Indeks untuk tabel `dosen`
 --
 ALTER TABLE `dosen`
   ADD PRIMARY KEY (`id_dosen`),
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- Indexes for table `kehadiran`
+-- Indeks untuk tabel `kehadiran`
 --
 ALTER TABLE `kehadiran`
   ADD PRIMARY KEY (`id_kehadiran`);
 
 --
--- Indexes for table `kelas`
+-- Indeks untuk tabel `kelas`
 --
 ALTER TABLE `kelas`
   ADD PRIMARY KEY (`id_kelas`);
 
 --
--- Indexes for table `mahasiswa`
+-- Indeks untuk tabel `mahasiswa`
 --
 ALTER TABLE `mahasiswa`
   ADD PRIMARY KEY (`id_mahasiswa`),
   ADD UNIQUE KEY `username` (`username`);
 
 --
--- Indexes for table `mata_kuliah`
+-- Indeks untuk tabel `mata_kuliah`
 --
 ALTER TABLE `mata_kuliah`
   ADD PRIMARY KEY (`id_matkul`);
 
 --
--- Indexes for table `sesi_absensi`
+-- Indeks untuk tabel `sesi_absensi`
 --
 ALTER TABLE `sesi_absensi`
   ADD PRIMARY KEY (`id_sesi`);
 
 --
--- AUTO_INCREMENT for dumped tables
+-- AUTO_INCREMENT untuk tabel yang dibuang
 --
 
 --
--- AUTO_INCREMENT for table `admin`
+-- AUTO_INCREMENT untuk tabel `admin`
 --
 ALTER TABLE `admin`
   MODIFY `id_admin` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
--- AUTO_INCREMENT for table `dosen`
+-- AUTO_INCREMENT untuk tabel `dosen`
 --
 ALTER TABLE `dosen`
   MODIFY `id_dosen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
--- AUTO_INCREMENT for table `kehadiran`
+-- AUTO_INCREMENT untuk tabel `kehadiran`
 --
 ALTER TABLE `kehadiran`
   MODIFY `id_kehadiran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
--- AUTO_INCREMENT for table `kelas`
+-- AUTO_INCREMENT untuk tabel `kelas`
 --
 ALTER TABLE `kelas`
   MODIFY `id_kelas` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `mahasiswa`
+-- AUTO_INCREMENT untuk tabel `mahasiswa`
 --
 ALTER TABLE `mahasiswa`
-  MODIFY `id_mahasiswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_mahasiswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
 
 --
--- AUTO_INCREMENT for table `mata_kuliah`
+-- AUTO_INCREMENT untuk tabel `mata_kuliah`
 --
 ALTER TABLE `mata_kuliah`
   MODIFY `id_matkul` int(11) NOT NULL AUTO_INCREMENT;
 
 --
--- AUTO_INCREMENT for table `sesi_absensi`
+-- AUTO_INCREMENT untuk tabel `sesi_absensi`
 --
 ALTER TABLE `sesi_absensi`
   MODIFY `id_sesi` int(11) NOT NULL AUTO_INCREMENT;
