@@ -771,36 +771,127 @@ $active_page = 'buat_sesi';
                             });
 
                             // Timer Countdown
+                            let timerInterval;
+                            let sessionEnded = false;
+
                             function updateTimer() {
+                                if (sessionEnded) return; // Stop jika sesi sudah berakhir
+                                
                                 const now = Date.now();
                                 const remaining = Math.max(0, waktuSelesai - now);
                                 const hours = Math.floor(remaining / 3600000);
                                 const minutes = Math.floor((remaining % 3600000) / 60000);
                                 const seconds = Math.floor((remaining % 60000) / 1000);
                                 
-                                document.getElementById('timerBadge').textContent = 
-                                    String(hours).padStart(2, '0') + ':' + 
-                                    String(minutes).padStart(2, '0') + ':' + 
-                                    String(seconds).padStart(2, '0');
+                                const timerBadge = document.getElementById('timerBadge');
+                                if (timerBadge) {
+                                    timerBadge.textContent = 
+                                        String(hours).padStart(2, '0') + ':' + 
+                                        String(minutes).padStart(2, '0') + ':' + 
+                                        String(seconds).padStart(2, '0');
+                                }
                                 
-                                if (remaining <= 0) {
-                                    location.reload();
+                                // Jika waktu habis
+                                if (remaining <= 0 && !sessionEnded) {
+                                    sessionEnded = true;
+                                    clearInterval(timerInterval);
+                                    endSessionDisplay();
                                 }
                             }
-                            setInterval(updateTimer, 1000);
-                            updateTimer();
 
-                            // Auto refresh kehadiran setiap 5 detik
+                            // Tampilkan pesan sesi berakhir & hilangkan QR Code
+                            function endSessionDisplay() {
+                                // Update status di database
+                                fetch('api/akhiri_sesi.php', {
+                                    method: 'POST',
+                                    headers: {'Content-Type': 'application/json'},
+                                    body: JSON.stringify({id_sesi: sessionId})
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        // Hilangkan QR Code dan tampilkan pesan
+                                        const qrContainer = document.querySelector('.qr-container');
+                                        if (qrContainer) {
+                                            qrContainer.innerHTML = `
+                                                <div style="text-align: center; padding: 2rem;">
+                                                    <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">⏰</div>
+                                                    <h3 style="color: #ef4444; margin-bottom: 0.5rem;">Sesi Absensi Berakhir</h3>
+                                                    <p style="color: #6b7280; margin-bottom: 1.5rem;">Waktu absensi telah habis</p>
+                                                </div>
+                                            `;
+                                        }
+                                        
+                                        // Update status badge
+                                        const statusBadge = document.querySelector('.status-badge');
+                                        if (statusBadge) {
+                                            statusBadge.textContent = '⏹ SESI SELESAI';
+                                            statusBadge.style.background = '#fee2e2';
+                                            statusBadge.style.color = '#ef4444';
+                                        }
+                                        
+                                        // Disable tombol refresh & fullscreen, tapi enable generate button di form
+                                        document.querySelectorAll('.btn-action').forEach(btn => {
+                                            btn.disabled = true;
+                                            btn.style.opacity = '0.5';
+                                            btn.style.cursor = 'not-allowed';
+                                        });
+                                        
+                                        // Hilangkan timer badge
+                                        const timerBadge = document.getElementById('timerBadge');
+                                        if (timerBadge) {
+                                            timerBadge.style.display = 'none';
+                                        }
+                                        
+                                        // Enable kembali form untuk sesi baru
+                                        const form = document.getElementById('formSesi');
+                                        if (form) {
+                                            const submitBtn = form.querySelector('button[type="submit"]');
+                                            if (submitBtn) {
+                                                submitBtn.disabled = false;
+                                                submitBtn.style.opacity = '1';
+                                                submitBtn.style.cursor = 'pointer';
+                                            }
+                                        }
+                                        
+                                        alert('Sesi absensi telah berakhir. Anda dapat membuat sesi baru.');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error ending session:', error);
+                                });
+                            }
+
+                            // Reset form untuk sesi baru
+                            function resetFormUntukSesiBaru() {
+                                // Reload halaman untuk reset penuh
+                                window.location.href = 'buat_sesi.php';
+                            }
+
+                            // Start timer
+                            timerInterval = setInterval(updateTimer, 1000);
+                            updateTimer(); // Call immediately
+
+                            // Auto refresh kehadiran setiap 5 detik (hanya jika sesi masih aktif)
                             function updateKehadiran() {
+                                if (sessionEnded) return;
+                                
                                 fetch('api/get_kehadiran.php?id_sesi=' + sessionId)
                                     .then(response => response.json())
                                     .then(data => {
-                                        document.querySelector('.progress-count').textContent = 
-                                            data.jumlah_hadir + ' / ' + data.total_mahasiswa;
-                                        const percent = data.total_mahasiswa > 0 ? 
-                                            (data.jumlah_hadir / data.total_mahasiswa * 100) : 0;
-                                        document.querySelector('.progress-fill').style.width = percent + '%';
-                                    });
+                                        const progressCount = document.querySelector('.progress-count');
+                                        const progressFill = document.querySelector('.progress-fill');
+                                        
+                                        if (progressCount) {
+                                            progressCount.textContent = data.jumlah_hadir + ' / ' + data.total_mahasiswa;
+                                        }
+                                        if (progressFill) {
+                                            const percent = data.total_mahasiswa > 0 ? 
+                                                (data.jumlah_hadir / data.total_mahasiswa * 100) : 0;
+                                            progressFill.style.width = percent + '%';
+                                        }
+                                    })
+                                    .catch(error => console.error('Error updating kehadiran:', error));
                             }
                             setInterval(updateKehadiran, 5000);
 

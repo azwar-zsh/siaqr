@@ -2,47 +2,42 @@
 session_start();
 require_once 'connection.php';
 
-// Proteksi: hanya dosen yang boleh masuk
+// Proteksi: hanya dosen yang boleh akses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'dosen') {
     header('Location: login.php');
     exit;
 }
 
-$nama = $_SESSION['nama'] ?? 'Dosen';
 $id_dosen = $_SESSION['id_user'] ?? 0;
 
 // ============================================
-// LOGIKA AKSI (Hapus, Akhiri, Perpanjang, Unduh)
+// LOGIKA AKSI (Hapus & Unduh)
 // ============================================
 if (isset($_GET['aksi']) && isset($_GET['id'])) {
     $id_sesi = (int)$_GET['id'];
     $aksi = $_GET['aksi'];
 
     if ($aksi === 'hapus') {
-        // Hapus data kehadiran terkait dulu (jika ada)
+        // Hapus data kehadiran terkait dulu
         mysqli_query($conn, "DELETE FROM kehadiran WHERE id_sesi = $id_sesi");
         // Hapus sesi
         $q = "DELETE FROM sesi_absensi WHERE id_sesi = $id_sesi AND id_dosen = $id_dosen";
         mysqli_query($conn, $q);
     } 
-    elseif ($aksi === 'akhiri') {
-        $q = "UPDATE sesi_absensi SET status = 'Selesai' WHERE id_sesi = $id_sesi AND id_dosen = $id_dosen";
-        mysqli_query($conn, $q);
-    } 
-    elseif ($aksi === 'perpanjang') {
-        $q = "UPDATE sesi_absensi SET waktu_selesai = DATE_ADD(waktu_selesai, INTERVAL 10 MINUTE) WHERE id_sesi = $id_sesi AND id_dosen = $id_dosen";
-        mysqli_query($conn, $q);
-    }
     elseif ($aksi === 'unduh') {
-        $q = "SELECT m.nama, m.nim, k.timestamp_hadir FROM kehadiran k 
+        $q = "SELECT m.nama, m.nim, k.timestamp_hadir, k.keterangan 
+              FROM kehadiran k 
               JOIN mahasiswa m ON k.id_mahasiswa = m.id_mahasiswa 
-              WHERE k.id_sesi = $id_sesi";
+              WHERE k.id_sesi = $id_sesi
+              ORDER BY k.timestamp_hadir ASC";
         $res = mysqli_query($conn, $q);
         
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="absensi_sesi_'.$id_sesi.'.csv"');
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="rekap_absensi_sesi_'.$id_sesi.'.csv"');
         $fp = fopen('php://output', 'w');
-        fputcsv($fp, ['Nama', 'NIM', 'Waktu Hadir']);
+        // BOM untuk Excel agar UTF-8 terbaca
+        fprintf($fp, chr(0xEF).chr(0xBB).chr(0xBF));
+        fputcsv($fp, ['Nama', 'NIM', 'Waktu Hadir', 'Keterangan']);
         while ($row = mysqli_fetch_assoc($res)) {
             fputcsv($fp, $row);
         }
@@ -50,57 +45,21 @@ if (isset($_GET['aksi']) && isset($_GET['id'])) {
         exit;
     }
 
-    header("Location: dashboard_dosen.php");
+    header("Location: riwayat_presensi.php" . (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING']) ? '?' . preg_replace('/[&?]aksi=[^&]*/', '', $_SERVER['QUERY_STRING']) : ''));
     exit;
 }
 
 // ============================================
-// STATISTIK
-// ============================================
-$query_sesi_aktif = "SELECT COUNT(*) as total FROM sesi_absensi 
-                     WHERE DATE(waktu_mulai) = CURDATE() AND status = 'Aktif' AND id_dosen = ?";
-$stmt = mysqli_prepare($conn, $query_sesi_aktif);
-mysqli_stmt_bind_param($stmt, "i", $id_dosen);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$sesi_aktif = mysqli_fetch_assoc($result)['total'] ?? 0;
-
-$query_total_mhs = "SELECT COUNT(DISTINCT m.id_mahasiswa) as total 
-                    FROM mahasiswa m
-                    JOIN kelas k ON m.program_studi = k.program_studi
-                    WHERE k.id_dosen = ?";
-$stmt = mysqli_prepare($conn, $query_total_mhs);
-mysqli_stmt_bind_param($stmt, "i", $id_dosen);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$total_mahasiswa = mysqli_fetch_assoc($result)['total'] ?? 0;
-
-if ($total_mahasiswa == 0) {
-    $query_all_mhs = "SELECT COUNT(*) as total FROM mahasiswa";
-    $result = mysqli_query($conn, $query_all_mhs);
-    $total_mahasiswa = mysqli_fetch_assoc($result)['total'] ?? 0;
-}
-
-$query_avg = "SELECT 
-    COUNT(CASE WHEN k.keterangan = 'Hadir' THEN 1 END) * 100.0 / 
-    NULLIF(COUNT(k.id_kehadiran), 0) as rata_rata
-FROM kehadiran k
-JOIN sesi_absensi sa ON k.id_sesi = sa.id_sesi
-WHERE sa.id_dosen = ?";
-$stmt = mysqli_prepare($conn, $query_avg);
-mysqli_stmt_bind_param($stmt, "i", $id_dosen);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$rata_rata = round(mysqli_fetch_assoc($result)['rata_rata'] ?? 92.4, 1);
-
-// ============================================
-// FILTER & PAGINATION (seperti riwayat_presensi.php)
+// FILTER
 // ============================================
 $filter_semester = $_GET['semester'] ?? '';
 $filter_matkul = $_GET['matkul'] ?? '';
 $filter_status = $_GET['status'] ?? '';
+$search = $_GET['search'] ?? '';
 
-// Ambil data mata kuliah untuk filter
+// ============================================
+// AMBIL DATA MATA KULIAH UNTUK FILTER
+// ============================================
 $query_matkul_filter = "SELECT DISTINCT mk.id_matkul, mk.nama_matkul 
                         FROM mata_kuliah mk
                         JOIN sesi_absensi sa ON mk.id_matkul = sa.id_matkul
@@ -115,7 +74,9 @@ while ($row = mysqli_fetch_assoc($result_matkul)) {
     $matkul_list[] = $row;
 }
 
-// Build WHERE clause
+// ============================================
+// QUERY UTAMA: RIWAYAT SESI
+// ============================================
 $where_conditions = ["sa.id_dosen = ?"];
 $params = [$id_dosen];
 $types = "i";
@@ -140,11 +101,18 @@ if ($filter_semester) {
     }
 }
 
+if ($search) {
+    $search_esc = mysqli_real_escape_string($conn, $search);
+    $where_conditions[] = "(mk.nama_matkul LIKE '%$search_esc%' OR k.nama_kelas LIKE '%$search_esc%')";
+}
+
 $where_sql = implode(" AND ", $where_conditions);
 
-// Count total
+// Count total untuk pagination
 $query_count = "SELECT COUNT(*) as total 
                 FROM sesi_absensi sa
+                JOIN mata_kuliah mk ON sa.id_matkul = mk.id_matkul
+                JOIN kelas k ON sa.id_kelas = k.id_kelas
                 WHERE $where_sql";
 $stmt_count = mysqli_prepare($conn, $query_count);
 mysqli_stmt_bind_param($stmt_count, $types, ...$params);
@@ -157,7 +125,7 @@ $current_page = isset($_GET['page']) ? max(1, (int)$_GET['page']) : 1;
 $total_pages = ceil($total_records / $per_page);
 $offset = ($current_page - 1) * $per_page;
 
-// Query utama
+// Query utama dengan pagination
 $query = "SELECT 
     sa.id_sesi,
     sa.waktu_mulai,
@@ -182,61 +150,68 @@ $stmt = mysqli_prepare($conn, $query);
 mysqli_stmt_bind_param($stmt, $types, ...$params);
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
-$daftar_sesi = [];
+$riwayat_sesi = [];
 while ($row = mysqli_fetch_assoc($result)) {
-    $daftar_sesi[] = $row;
+    $riwayat_sesi[] = $row;
 }
 
 // Fallback data jika kosong
-if (empty($daftar_sesi) && $total_records == 0) {
-    $daftar_sesi = [
+if (empty($riwayat_sesi) && $total_records == 0) {
+    $riwayat_sesi = [
         [
-            'id_sesi' => 1, 'waktu_mulai' => '2026-06-21 08:00:00', 'waktu_selesai' => '2026-06-21 09:40:00',
-            'status' => 'Selesai', 'pertemuan_ke' => 4, 'nama_matkul' => 'Pemrograman Web',
-            'kode_matkul' => 'MK401', 'nama_kelas' => 'IK24-A', 'jumlah_hadir' => 38, 'total_mahasiswa' => 49
+            'id_sesi' => 1,
+            'waktu_mulai' => '2026-05-12 08:00:00',
+            'waktu_selesai' => '2026-05-12 10:30:00',
+            'status' => 'Selesai',
+            'pertemuan_ke' => 10,
+            'nama_matkul' => 'Pemrograman Web',
+            'kode_matkul' => 'MK401',
+            'nama_kelas' => 'IK24-A',
+            'jumlah_hadir' => 38,
+            'total_mahasiswa' => 49
         ],
         [
-            'id_sesi' => 2, 'waktu_mulai' => '2026-06-21 10:00:00', 'waktu_selesai' => '2026-06-21 11:40:00',
-            'status' => 'Aktif', 'pertemuan_ke' => 4, 'nama_matkul' => 'Struktur Data',
-            'kode_matkul' => 'MK405', 'nama_kelas' => 'IK24-B', 'jumlah_hadir' => 28, 'total_mahasiswa' => 34
+            'id_sesi' => 2,
+            'waktu_mulai' => '2026-05-11 10:30:00',
+            'waktu_selesai' => '2026-05-11 13:10:00',
+            'status' => 'Selesai',
+            'pertemuan_ke' => 9,
+            'nama_matkul' => 'Struktur Data',
+            'kode_matkul' => 'MK405',
+            'nama_kelas' => 'IK24-B',
+            'jumlah_hadir' => 28,
+            'total_mahasiswa' => 34
+        ],
+        [
+            'id_sesi' => 3,
+            'waktu_mulai' => '2026-05-09 10:00:00',
+            'waktu_selesai' => '2026-05-09 11:40:00',
+            'status' => 'Selesai',
+            'pertemuan_ke' => 8,
+            'nama_matkul' => 'Sistem Operasi',
+            'kode_matkul' => 'MK404',
+            'nama_kelas' => 'IK24-B',
+            'jumlah_hadir' => 28,
+            'total_mahasiswa' => 40
+        ],
+        [
+            'id_sesi' => 4,
+            'waktu_mulai' => '2026-05-05 08:00:00',
+            'waktu_selesai' => '2026-05-05 10:30:00',
+            'status' => 'Selesai',
+            'pertemuan_ke' => 7,
+            'nama_matkul' => 'Basis Data Lanjut',
+            'kode_matkul' => 'MK403',
+            'nama_kelas' => 'IK24-A',
+            'jumlah_hadir' => 40,
+            'total_mahasiswa' => 48
         ]
     ];
-    $total_records = 2;
-    $total_pages = 1;
+    $total_records = 42;
+    $total_pages = 9;
 }
 
-// ============================================
-// TANGGAL & SEMESTER
-// ============================================
-$hari_ini = date('l, d F Y');
-$hari_indo = [
-    'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
-    'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu'
-];
-$bulan_indo = [
-    'January' => 'Januari', 'February' => 'Februari', 'March' => 'Maret',
-    'April' => 'April', 'May' => 'Mei', 'June' => 'Juni',
-    'July' => 'Juli', 'August' => 'Agustus', 'September' => 'September',
-    'October' => 'Oktober', 'November' => 'November', 'December' => 'Desember'
-];
-$tanggal_formatted = str_replace(array_keys($hari_indo), array_values($hari_indo), 
-    str_replace(array_keys($bulan_indo), array_values($bulan_indo), $hari_ini));
-
-$bulan_sekarang = (int)date('m');
-$tahun_sekarang = date('Y');
-if ($bulan_sekarang >= 1 && $bulan_sekarang <= 6) {
-    $semester = "Semester Genap " . ($tahun_sekarang - 1) . "/" . $tahun_sekarang;
-} else {
-    $semester = "Semester Ganjil " . $tahun_sekarang . "/" . ($tahun_sekarang + 1);
-}
-
-$jam_sekarang = (int)date('H');
-if ($jam_sekarang < 12) $greeting = "Selamat pagi";
-elseif ($jam_sekarang < 15) $greeting = "Selamat siang";
-elseif ($jam_sekarang < 18) $greeting = "Selamat sore";
-else $greeting = "Selamat malam";
-
-$active_page = 'dashboard';
+$active_page = 'riwayat';
 ?>
 
 <!DOCTYPE html>
@@ -244,7 +219,7 @@ $active_page = 'dashboard';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Dosen – Portal SIAQR</title>
+    <title>Riwayat Presensi - Portal SIAQR</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -267,6 +242,7 @@ $active_page = 'dashboard';
             position: fixed;
             height: 100vh;
             overflow-y: auto;
+            z-index: 100;
         }
         .sidebar-header {
             padding: 1.5rem;
@@ -317,113 +293,44 @@ $active_page = 'dashboard';
             padding: 2rem;
         }
 
-        /* Header */
-        .content-header {
+        /* Topbar */
+        .topbar {
             display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 2rem;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
         }
-        .header-left h1 {
+        .topbar-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid #e5e7eb;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #6b7280;
+        }
+        .topbar-btn:hover { background: #f9fafb; }
+
+        /* Page Header */
+        .page-header {
+            margin-bottom: 1.5rem;
+        }
+        .page-header h1 {
             font-size: 1.75rem;
             font-weight: 700;
             color: #1a1a1a;
             margin-bottom: 0.25rem;
         }
-        .header-subtitle {
+        .page-header p {
             color: #6b7280;
-            font-size: 0.95rem;
-        }
-
-        .btn-create-session {
-            background: #c45a0a;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
             font-size: 0.875rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            text-decoration: none;
-            border: none;
-            cursor: pointer;
-        }
-        .btn-create-session:hover { background: #a04a08; }
-        .btn-create-session .plus-icon {
-            font-size: 1.25rem;
-            font-weight: bold;
-            line-height: 1;
         }
 
-        /* Stats Grid */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        .stat-card {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 1rem;
-            border: 1px solid #e5e7eb;
-        }
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-        .stat-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .stat-icon.live { background: #fef3c7; color: #d97706; }
-        .stat-icon.users { background: #dbeafe; color: #2563eb; }
-        .stat-icon.percent { background: #dcfce7; color: #16a34a; }
-        .stat-icon svg { width: 20px; height: 20px; }
-        .live-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: #16a34a;
-        }
-        .live-dot {
-            width: 8px;
-            height: 8px;
-            background: #16a34a;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .stat-value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: #1a1a1a;
-            margin-bottom: 0.25rem;
-        }
-        .stat-label {
-            font-size: 0.875rem;
-            color: #6b7280;
-        }
-        .stat-change {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #16a34a;
-            margin-top: 0.5rem;
-        }
-
-        /* Filter Bar (seperti riwayat_presensi) */
+        /* Filter Bar */
         .filter-bar {
             background: white;
             border: 1px solid #e5e7eb;
@@ -464,6 +371,20 @@ $active_page = 'dashboard';
             border-color: #e8670a;
             box-shadow: 0 0 0 3px rgba(232, 103, 10, 0.1);
         }
+        .filter-input {
+            padding: 0.625rem 0.875rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-family: inherit;
+            background: white;
+            min-width: 200px;
+        }
+        .filter-input:focus {
+            outline: none;
+            border-color: #e8670a;
+            box-shadow: 0 0 0 3px rgba(232, 103, 10, 0.1);
+        }
         .btn-filter {
             padding: 0.625rem 1rem;
             background: #e8670a;
@@ -490,6 +411,8 @@ $active_page = 'dashboard';
             cursor: pointer;
             height: 38px;
             text-decoration: none;
+            display: inline-flex;
+            align-items: center;
         }
         .btn-reset:hover { background: #f9fafb; }
 
@@ -513,6 +436,21 @@ $active_page = 'dashboard';
             height: 20px;
             color: #e8670a;
         }
+        .btn-export {
+            padding: 0.625rem 1rem;
+            background: white;
+            color: #e8670a;
+            border: 1px solid #e8670a;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+        }
+        .btn-export:hover { background: #fff0e4; }
 
         /* Table Card */
         .table-card {
@@ -609,9 +547,9 @@ $active_page = 'dashboard';
         }
         .status-badge.Selesai { background: #dcfce7; color: #16a34a; }
         .status-badge.Aktif { background: #fef3c7; color: #d97706; }
-        .status-badge.Belum-Mulai { background: #f3f4f6; color: #6b7280; }
+        .status-badge.Batal { background: #fee2e2; color: #ef4444; }
 
-        /* Action Buttons */
+        /* Action Buttons (sama seperti dashboard) */
         .action-group {
             display: flex;
             gap: 0.25rem;
@@ -628,16 +566,6 @@ $active_page = 'dashboard';
             display: inline-block;
             white-space: nowrap;
         }
-        .btn-action.extend {
-            background: #dbeafe;
-            color: #2563eb;
-        }
-        .btn-action.extend:hover { background: #bfdbfe; }
-        .btn-action.end {
-            background: #fef3c7;
-            color: #d97706;
-        }
-        .btn-action.end:hover { background: #fde68a; }
         .btn-action.download {
             background: #dcfce7;
             color: #16a34a;
@@ -718,9 +646,8 @@ $active_page = 'dashboard';
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .main-content { margin-left: 0; }
-            .stats-grid { grid-template-columns: 1fr; }
             .filter-bar { flex-direction: column; align-items: stretch; }
-            .filter-select { min-width: 100%; }
+            .filter-select, .filter-input { min-width: 100%; }
         }
     </style>
 </head>
@@ -786,71 +713,30 @@ $active_page = 'dashboard';
 
         <!-- Main Content -->
         <main class="main-content">
-            <!-- Header -->
-            <div class="content-header">
-                <div class="header-left">
-                    <h1><?= $greeting ?>, Pak <?= htmlspecialchars($nama) ?></h1>
-                    <p class="header-subtitle"><?= $tanggal_formatted ?> • <?= $semester ?></p>
-                </div>
-                <a href="buat_sesi.php" class="btn-create-session">
-                    <span class="plus-icon">+</span>
-                    Buat Sesi Baru
-                </a>
+            <!-- Topbar -->
+            <div class="topbar">
+                <button class="topbar-btn" title="Notifikasi">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                    </svg>
+                </button>
+                <button class="topbar-btn" title="Profil">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                        <circle cx="12" cy="7" r="4"/>
+                    </svg>
+                </button>
             </div>
 
-            <!-- Stats Grid -->
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon live">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M5 12.55a11 11 0 0 1 14.08 0"/>
-                                <path d="M1.42 9a16 16 0 0 1 21.16 0"/>
-                                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
-                                <line x1="12" y1="20" x2="12.01" y2="20"/>
-                            </svg>
-                        </div>
-                        <?php if ($sesi_aktif > 0): ?>
-                        <span class="live-badge"><span class="live-dot"></span> LIVE</span>
-                        <?php endif; ?>
-                    </div>
-                    <div class="stat-value"><?= str_pad($sesi_aktif, 2, '0', STR_PAD_LEFT) ?></div>
-                    <div class="stat-label">Sesi Aktif Hari Ini</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon users">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="stat-value"><?= $total_mahasiswa ?></div>
-                    <div class="stat-label">Total Mahasiswa Terdaftar</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon percent">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="18" y1="20" x2="18" y2="10"/>
-                                <line x1="12" y1="20" x2="12" y2="4"/>
-                                <line x1="6" y1="20" x2="6" y2="14"/>
-                            </svg>
-                        </div>
-                    </div>
-                    <div class="stat-value"><?= $rata_rata ?>%</div>
-                    <div class="stat-label">Rata-rata Kehadiran</div>
-                    <div class="stat-change">↑2.1% dari bulan lalu</div>
-                </div>
+            <!-- Page Header -->
+            <div class="page-header">
+                <h1>Riwayat Presensi</h1>
+                <p>Rekapitulasi seluruh sesi perkuliahan yang telah Anda lakukan</p>
             </div>
 
             <!-- Filter Bar -->
-            <form method="GET" action="dashboard_dosen.php" class="filter-bar">
+            <form method="GET" action="riwayat_presensi.php" class="filter-bar">
                 <div class="filter-group">
                     <label class="filter-label">Semester</label>
                     <select name="semester" class="filter-select">
@@ -878,6 +764,10 @@ $active_page = 'dashboard';
                         <option value="Selesai" <?= $filter_status === 'Selesai' ? 'selected' : '' ?>>Selesai</option>
                     </select>
                 </div>
+                <div class="filter-group">
+                    <label class="filter-label">Cari</label>
+                    <input type="text" name="search" class="filter-input" placeholder="Nama matkul / kelas..." value="<?= htmlspecialchars($search) ?>">
+                </div>
                 <button type="submit" class="btn-filter">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <circle cx="11" cy="11" r="8"/>
@@ -885,7 +775,7 @@ $active_page = 'dashboard';
                     </svg>
                     Filter
                 </button>
-                <a href="dashboard_dosen.php" class="btn-reset">Reset</a>
+                <a href="riwayat_presensi.php" class="btn-reset">Reset</a>
             </form>
 
             <!-- Section Header -->
@@ -894,9 +784,20 @@ $active_page = 'dashboard';
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                         <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
                     </svg>
                     Daftar Sesi Perkuliahan
                 </div>
+                <a href="export_laporan.php?<?= http_build_query($_GET) ?>" class="btn-export" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Ekspor Laporan (.xlsx)
+                </a>
             </div>
 
             <!-- Table -->
@@ -914,7 +815,7 @@ $active_page = 'dashboard';
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($daftar_sesi)): ?>
+                            <?php if (empty($riwayat_sesi)): ?>
                             <tr>
                                 <td colspan="6">
                                     <div class="empty-state">
@@ -922,12 +823,12 @@ $active_page = 'dashboard';
                                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                             <polyline points="14 2 14 8 20 8"/>
                                         </svg>
-                                        <p>Belum ada sesi perkuliahan</p>
+                                        <p>Belum ada riwayat sesi presensi</p>
                                     </div>
                                 </td>
                             </tr>
                             <?php else: ?>
-                            <?php foreach ($daftar_sesi as $sesi): 
+                            <?php foreach ($riwayat_sesi as $sesi): 
                                 $persentase = $sesi['total_mahasiswa'] > 0 
                                     ? round(($sesi['jumlah_hadir'] / $sesi['total_mahasiswa']) * 100) 
                                     : 0;
@@ -938,7 +839,6 @@ $active_page = 'dashboard';
                                 
                                 $tanggal = date('d M Y', strtotime($sesi['waktu_mulai']));
                                 $jam = date('H:i', strtotime($sesi['waktu_mulai'])) . ' - ' . date('H:i', strtotime($sesi['waktu_selesai']));
-                                $status_class = str_replace(' ', '-', $sesi['status']);
                             ?>
                             <tr>
                                 <td>
@@ -961,14 +861,10 @@ $active_page = 'dashboard';
                                     </div>
                                 </td>
                                 <td>
-                                    <span class="status-badge <?= $status_class ?>"><?= strtoupper($sesi['status']) ?></span>
+                                    <span class="status-badge <?= $sesi['status'] ?>"><?= strtoupper($sesi['status']) ?></span>
                                 </td>
                                 <td>
                                     <div class="action-group">
-                                        <?php if ($sesi['status'] === 'Aktif'): ?>
-                                            <a href="?aksi=perpanjang&id=<?= $sesi['id_sesi'] ?>" class="btn-action extend" title="Tambah 10 menit">+10 Mnt</a>
-                                            <a href="?aksi=akhiri&id=<?= $sesi['id_sesi'] ?>" class="btn-action end" onclick="return confirm('Yakin ingin mengakhiri sesi ini sekarang?')">Akhiri</a>
-                                        <?php endif; ?>
                                         <a href="?aksi=unduh&id=<?= $sesi['id_sesi'] ?>" class="btn-action download">Unduh</a>
                                         <a href="?aksi=hapus&id=<?= $sesi['id_sesi'] ?>" class="btn-action delete" onclick="return confirm('⚠️ PERINGATAN!\n\nAnda akan menghapus sesi ini beserta semua data kehadiran mahasiswa.\n\nTindakan ini TIDAK DAPAT dibatalkan.\n\nYakin ingin menghapus?')">Hapus</a>
                                     </div>
@@ -984,7 +880,7 @@ $active_page = 'dashboard';
                 <?php if ($total_records > 0): ?>
                 <div class="pagination-wrapper">
                     <div class="pagination-info">
-                        Menampilkan <?= $offset + 1 ?>-<?= min($offset + $per_page, $total_records) ?> dari <?= $total_records ?> sesi
+                        Menampilkan <?= $offset + 1 ?>-<?= min($offset + $per_page, $total_records) ?> dari <?= $total_records ?> sesi perkuliahan
                     </div>
                     <div class="pagination-controls">
                         <?php if ($current_page > 1): ?>

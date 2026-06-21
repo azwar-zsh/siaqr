@@ -13,7 +13,9 @@ $data = json_decode(file_get_contents('php://input'), true);
 $id_sesi = (int)($data['id_sesi'] ?? 0);
 $id_dosen = $_SESSION['id_user'] ?? 0;
 
-$query = "UPDATE sesi_absensi SET status = 'Selesai' 
+// Update status menjadi Selesai
+$query = "UPDATE sesi_absensi 
+          SET status = 'Selesai' 
           WHERE id_sesi = ? AND id_dosen = ?";
 
 $stmt = mysqli_prepare($conn, $query);
