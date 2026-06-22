@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Jun 11, 2026 at 02:19 AM
+-- Generation Time: Jun 21, 2026 at 08:43 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -41,7 +41,7 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`id_admin`, `nama`, `username`, `password`, `jabatan`, `role`) VALUES
-(1, 'Yosia', '241011098', '241011098', 'admin', 'admin'),
+(1, 'Yosia', '241011098', '241011098', 'admin baru', 'admin'),
 (2, 'Super Admin', 'admin123', 'admin123', 'System Administrator', 'super_admin');
 
 -- --------------------------------------------------------
@@ -112,7 +112,7 @@ CREATE TABLE `kelas` (
 --
 
 INSERT INTO `kelas` (`id_kelas`, `nama_kelas`, `tahun_akademik`, `program_studi`, `ruangan`, `id_dosen`, `id_matkul`) VALUES
-(1, 'IK24-A', '2026/2027', 'Ilmu Komputer', NULL, NULL, NULL),
+(1, 'IK24-A', '2026/2027', '', 'LT-203', 2, 1),
 (2, 'IK24-B', '2026/2027', 'Ilmu Komputer', NULL, NULL, NULL),
 (3, 'IF-44-01', '2026/2027', '', 'LT-203', 1, 1),
 (4, 'IF-44-05', '2026/2027', '', 'GP-104', 1, 1);
@@ -255,7 +255,7 @@ ALTER TABLE `sesi_absensi`
 -- AUTO_INCREMENT for table `admin`
 --
 ALTER TABLE `admin`
-  MODIFY `id_admin` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_admin` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `dosen`
