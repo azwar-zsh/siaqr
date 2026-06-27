@@ -27,18 +27,21 @@ while ($row = mysqli_fetch_assoc($result_matkul)) {
     $matkul_list[] = $row;
 }
 
-// Ambil data kelas
-$query_kelas = "SELECT id_kelas, nama_kelas, tahun_akademik 
-                FROM kelas 
-                WHERE id_dosen = ? OR id_dosen IS NULL
-                ORDER BY nama_kelas";
+// Ambil data kelas beserta jumlah mahasiswanya (Diubah agar dinamis)
+$query_kelas = "SELECT k.id_kelas, k.nama_kelas, k.tahun_akademik, 
+                       (SELECT COUNT(*) FROM mahasiswa m WHERE m.program_studi = k.program_studi) as total_mhs
+                FROM kelas k 
+                WHERE k.id_dosen = ? OR k.id_dosen IS NULL
+                ORDER BY k.nama_kelas";
 $stmt = mysqli_prepare($conn, $query_kelas);
 mysqli_stmt_bind_param($stmt, "i", $id_dosen);
 mysqli_stmt_execute($stmt);
 $result_kelas = mysqli_stmt_get_result($stmt);
 $kelas_list = [];
+$kelas_mhs_count = []; // Menyimpan data jumlah mahasiswa per kelas untuk Javascript
 while ($row = mysqli_fetch_assoc($result_kelas)) {
     $kelas_list[] = $row;
+    $kelas_mhs_count[$row['id_kelas']] = (int)$row['total_mhs'];
 }
 
 // Proses simpan sesi baru
@@ -54,6 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Generate token unik untuk QR Code
     $token = bin2hex(random_bytes(16));
     
+    // Generate kode manual (6 karakter acak kombinasi huruf dan angka)
+    $kode_manual = strtoupper(substr(str_shuffle("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 6));
+    
     // Waktu mulai dan selesai
     $waktu_mulai = date('Y-m-d H:i:s');
     $waktu_selesai = date('Y-m-d H:i:s', strtotime("+{$durasi} minutes"));
@@ -61,13 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Insert sesi baru
     $query_insert = "INSERT INTO sesi_absensi 
                      (id_dosen, id_matkul, id_kelas, pertemuan_ke, waktu_mulai, waktu_selesai, 
-                      durasi, qr_code_token, status) 
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Aktif')";
+                      durasi, qr_code_token, kode_manual, status) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Aktif')";
     
     $stmt = mysqli_prepare($conn, $query_insert);
-    mysqli_stmt_bind_param($stmt, "iiiissss", 
+    mysqli_stmt_bind_param($stmt, "iiiisssss", 
         $id_dosen, $id_matkul, $id_kelas, $pertemuan_ke, 
-        $waktu_mulai, $waktu_selesai, $durasi, $token
+        $waktu_mulai, $waktu_selesai, $durasi, $token, $kode_manual
     );
     
     if (mysqli_stmt_execute($stmt)) {
@@ -77,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $query_sesi = "SELECT sa.*, mk.nama_matkul, k.nama_kelas,
                        (SELECT COUNT(*) FROM mahasiswa m 
                         JOIN kelas k2 ON m.program_studi = k2.program_studi 
-                        WHERE k2.id_kelas = sa.id_kelas) as total_mahasiswa
+                        WHERE k2.id_kelas = sa.id_kelas) as total_mahasiswa,
+                       0 as jumlah_hadir
                        FROM sesi_absensi sa
                        JOIN mata_kuliah mk ON sa.id_matkul = mk.id_matkul
                        JOIN kelas k ON sa.id_kelas = k.id_kelas
@@ -112,15 +119,16 @@ mysqli_stmt_bind_param($stmt, "i", $id_dosen);
 mysqli_stmt_execute($stmt);
 $sesi_aktif = mysqli_fetch_assoc(mysqli_stmt_get_result($stmt));
 
-// Jika ada sesi aktif, ambil QR token-nya
+// Jika ada sesi aktif, ambil QR token-nya dan kode manual
 if ($sesi_aktif) {
-    $query_token = "SELECT qr_code_token FROM sesi_absensi WHERE id_sesi = ?";
+    $query_token = "SELECT qr_code_token, kode_manual FROM sesi_absensi WHERE id_sesi = ?";
     $stmt = mysqli_prepare($conn, $query_token);
     mysqli_stmt_bind_param($stmt, "i", $sesi_aktif['id_sesi']);
     mysqli_stmt_execute($stmt);
     $result = mysqli_stmt_get_result($stmt);
     $row = mysqli_fetch_assoc($result);
     $sesi_aktif['qr_token'] = $row['qr_code_token'];
+    $sesi_aktif['kode_manual'] = $row['kode_manual'];
 }
 
 $active_page = 'buat_sesi';
@@ -134,7 +142,6 @@ $active_page = 'buat_sesi';
     <title>Buat Sesi Absensi - Portal SIAQR</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- QR Code Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -533,7 +540,6 @@ $active_page = 'buat_sesi';
 </head>
 <body>
     <div class="admin-wrapper">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo-icon">
@@ -594,7 +600,6 @@ $active_page = 'buat_sesi';
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <div class="page-header">
                 <h1>Buat Sesi Absensi</h1>
@@ -606,7 +611,6 @@ $active_page = 'buat_sesi';
             <?php endif; ?>
 
             <div class="session-layout">
-                <!-- Left: Form -->
                 <div class="form-card">
                     <h2>Buat Sesi Absensi</h2>
                     <p class="desc">Konfigurasi detail sesi perkuliahan untuk generate QR Code kehadiran.</p>
@@ -678,7 +682,7 @@ $active_page = 'buat_sesi';
                             </div>
                             <div class="total-mhs-text">
                                 Total Mahasiswa
-                                <strong id="totalMahasiswa">42 Mahasiswa</strong>
+                                <strong id="totalMahasiswa">- Mahasiswa</strong>
                             </div>
                         </div>
                         <div class="total-mhs-arrow">
@@ -687,9 +691,23 @@ $active_page = 'buat_sesi';
                             </svg>
                         </div>
                     </div>
+
+                    <script>
+                        const dataTotalMhs = <?= json_encode($kelas_mhs_count) ?>;
+                        
+                        document.querySelector('select[name="id_kelas"]').addEventListener('change', function() {
+                            const idKelas = this.value;
+                            const labelTotal = document.getElementById('totalMahasiswa');
+                            
+                            if (idKelas && dataTotalMhs[idKelas] !== undefined) {
+                                labelTotal.textContent = dataTotalMhs[idKelas] + ' Mahasiswa';
+                            } else {
+                                labelTotal.textContent = '- Mahasiswa';
+                            }
+                        });
+                    </script>
                 </div>
 
-                <!-- Right: QR Display -->
                 <div class="qr-card">
                     <?php if ($sesi_aktif || $sesi_baru): ?>
                         <?php 
@@ -709,6 +727,13 @@ $active_page = 'buat_sesi';
                             <div id="qrcode"></div>
                         </div>
 
+                        <div class="manual-code-display" style="text-align: center; margin-top: -0.5rem; margin-bottom: 1.5rem;">
+                            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 0.5rem;">Atau gunakan kode manual berikut:</p>
+                            <div style="background: #f3f4f6; padding: 0.5rem 1.5rem; border-radius: 0.5rem; display: inline-block; font-size: 1.5rem; font-weight: 800; letter-spacing: 0.25rem; color: #e8670a; border: 1px dashed #d1d5db;">
+                                <?= htmlspecialchars($sesi['kode_manual'] ?? strtoupper(substr($sesi['qr_token'], 0, 6))) ?>
+                            </div>
+                        </div>
+
                         <div class="session-info">
                             <h3><?= htmlspecialchars($sesi['nama_matkul']) ?></h3>
                             <p>Kelas <?= htmlspecialchars($sesi['nama_kelas']) ?> • Pertemuan Ke-<?= $sesi['pertemuan_ke'] ?></p>
@@ -723,7 +748,7 @@ $active_page = 'buat_sesi';
                             </div>
                             <div class="progress-bar">
                                 <div class="progress-fill" 
-                                     style="width: <?= $sesi['total_mahasiswa'] > 0 ? round(($sesi['jumlah_hadir'] / $sesi['total_mahasiswa']) * 100) : 0 ?>%"></div>
+                                     style="width: <?= $sesi['total_mahasiswa'] > 0 ? round((($sesi['jumlah_hadir'] ?? 0) / $sesi['total_mahasiswa']) * 100) : 0 ?>%"></div>
                             </div>
                             <div class="progress-note">Update otomatis setiap 5 detik</div>
                         </div>
@@ -822,6 +847,12 @@ $active_page = 'buat_sesi';
                                             `;
                                         }
                                         
+                                        // Hilangkan kode manual
+                                        const manualCodeDisplay = document.querySelector('.manual-code-display');
+                                        if (manualCodeDisplay) {
+                                            manualCodeDisplay.style.display = 'none';
+                                        }
+
                                         // Update status badge
                                         const statusBadge = document.querySelector('.status-badge');
                                         if (statusBadge) {
@@ -862,12 +893,6 @@ $active_page = 'buat_sesi';
                                 });
                             }
 
-                            // Reset form untuk sesi baru
-                            function resetFormUntukSesiBaru() {
-                                // Reload halaman untuk reset penuh
-                                window.location.href = 'buat_sesi.php';
-                            }
-
                             // Start timer
                             timerInterval = setInterval(updateTimer, 1000);
                             updateTimer(); // Call immediately
@@ -906,12 +931,8 @@ $active_page = 'buat_sesi';
 
                             // Refresh QR
                             function refreshQR() {
-                                // Opsional: Generate token baru untuk keamanan
                                 if (confirm('Generate QR Code baru? Token sebelumnya akan tetap aktif.')) {
-                                    // Clear QR code lama
                                     document.getElementById('qrcode').innerHTML = '';
-                                    
-                                    // Generate QR code baru dengan token yang sama
                                     setTimeout(() => {
                                         new QRCode(document.getElementById("qrcode"), {
                                             text: scanURL,
@@ -922,8 +943,6 @@ $active_page = 'buat_sesi';
                                             correctLevel : QRCode.CorrectLevel.H
                                         });
                                     }, 100);
-                                    
-                                    // Visual feedback
                                     const btn = event.target.closest('button');
                                     const originalHTML = btn.innerHTML;
                                     btn.innerHTML = '⟳ Memuat...';
