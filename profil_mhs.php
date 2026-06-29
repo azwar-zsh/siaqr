@@ -2,7 +2,7 @@
 session_start();
 require_once 'connection.php';
 
-if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'mahasiswa') { header('Location: login.php'); exit; }
+if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'mahasiswa') { header('Location: index.php'); exit; }
 $id_mahasiswa = $_SESSION['id_user']; 
 
 $query = "SELECT nama, nim, program_studi, angkatan FROM mahasiswa WHERE id_mahasiswa = ?";
@@ -101,7 +101,15 @@ $fakultas = "Jurusan Teknologi Produksi dan Industri"; $ipk = "4.00";
             <div class="sidebar-header">
                 <div class="logo-icon">
                     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="4" y="4" width="14" height="14" rx="2" fill="#E8670A"/><rect x="26" y="4" width="14" height="14" rx="2" fill="#E8670A"/><rect x="4" y="26" width="14" height="14" rx="2" fill="#E8670A"/><rect x="26" y="26" width="6" height="6" rx="1" fill="#E8670A"/><rect x="34" y="26" width="6" height="6" rx="1" fill="#E8670A"/><rect x="26" y="34" width="6" height="6" rx="1" fill="#E8670A"/>
+                        <rect x="4" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="4" y="26" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="34" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="26" y="34" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="7" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="29" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="7" y="29" width="8" height="8" rx="1" fill="#E8670A"/>
                     </svg>
                 </div>
                 <div class="logo-text"><span class="logo-title">Portal SIAQR</span><span class="logo-subtitle">Area Mahasiswa</span></div>

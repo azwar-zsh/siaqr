@@ -4,7 +4,7 @@ include 'connection.php';
 
 // Proteksi: Hanya Super Admin yang bisa mengakses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'super_admin') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -30,10 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $check_result = mysqli_query($conn, $check_query);
 
             if (mysqli_num_rows($check_result) == 0) {
-                // Hash password (Gunakan password_hash di production!)
-                // $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-                // Untuk saat ini, simpan plain text sesuai struktur DB Anda
-                $hashed_password = $password;
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
                 $insert_query = "INSERT INTO admin (nama, username, password, jabatan, role) VALUES ('$nama', '$username', '$hashed_password', '$jabatan', '$role')";
                 if (mysqli_query($conn, $insert_query)) {
@@ -62,10 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (mysqli_num_rows($check_result) == 0) {
                 $update_query = "UPDATE admin SET nama='$nama', username='$username', jabatan='$jabatan', role='$role'";
-                if ($new_password) { // Jika password diisi, update
-                    // $hashed_new_password = password_hash($new_password, PASSWORD_DEFAULT);
-                    // Untuk saat ini, simpan plain text
-                    $update_query .= ", password='$new_password'";
+                if ($new_password) {
+                    $hashed_new_password = password_hash($new_password, PASSWORD_DEFAULT);
+                    $update_query .= ", password='$hashed_new_password'";
                 }
                 $update_query .= " WHERE id_admin = $id";
 

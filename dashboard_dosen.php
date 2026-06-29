@@ -4,7 +4,7 @@ require_once 'connection.php';
 
 // Proteksi: hanya dosen yang boleh masuk
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'dosen') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -185,24 +185,6 @@ $result = mysqli_stmt_get_result($stmt);
 $daftar_sesi = [];
 while ($row = mysqli_fetch_assoc($result)) {
     $daftar_sesi[] = $row;
-}
-
-// Fallback data jika kosong
-if (empty($daftar_sesi) && $total_records == 0) {
-    $daftar_sesi = [
-        [
-            'id_sesi' => 1, 'waktu_mulai' => '2026-06-21 08:00:00', 'waktu_selesai' => '2026-06-21 09:40:00',
-            'status' => 'Selesai', 'pertemuan_ke' => 4, 'nama_matkul' => 'Pemrograman Web',
-            'kode_matkul' => 'MK401', 'nama_kelas' => 'IK24-A', 'jumlah_hadir' => 38, 'total_mahasiswa' => 49
-        ],
-        [
-            'id_sesi' => 2, 'waktu_mulai' => '2026-06-21 10:00:00', 'waktu_selesai' => '2026-06-21 11:40:00',
-            'status' => 'Aktif', 'pertemuan_ke' => 4, 'nama_matkul' => 'Struktur Data',
-            'kode_matkul' => 'MK405', 'nama_kelas' => 'IK24-B', 'jumlah_hadir' => 28, 'total_mahasiswa' => 34
-        ]
-    ];
-    $total_records = 2;
-    $total_pages = 1;
 }
 
 // ============================================
@@ -731,12 +713,15 @@ $active_page = 'dashboard';
             <div class="sidebar-header">
                 <div class="logo-icon">
                     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="4" y="4" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="26" y="4" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="4" y="26" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="26" y="26" width="6" height="6" rx="1" fill="#E8670A"/>
-                        <rect x="34" y="26" width="6" height="6" rx="1" fill="#E8670A"/>
-                        <rect x="26" y="34" width="6" height="6" rx="1" fill="#E8670A"/>
+                        <rect x="4" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="4" y="26" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="34" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="26" y="34" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="7" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="29" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="7" y="29" width="8" height="8" rx="1" fill="#E8670A"/>
                     </svg>
                 </div>
                 <div class="logo-text">

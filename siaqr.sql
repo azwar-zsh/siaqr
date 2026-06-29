@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 22 Jun 2026 pada 06.00
+-- Waktu pembuatan: 29 Jun 2026 pada 09.40
 -- Versi server: 10.4.32-MariaDB
 -- Versi PHP: 8.2.12
 
@@ -41,7 +41,7 @@ CREATE TABLE `admin` (
 --
 
 INSERT INTO `admin` (`id_admin`, `nama`, `username`, `password`, `jabatan`, `role`) VALUES
-(1, 'Yosia', '241011098', '241011098', 'admin baru', 'admin'),
+(1, 'Yosia', '241011098', '$2y$10$q9H9OVUbJSp6CFOxGND9b.IG6Vqhoq1AttHdEGt12We96V150QhhS', 'admin baru', 'admin'),
 (2, 'Super Admin', 'admin123', 'admin123', 'System Administrator', 'super_admin');
 
 -- --------------------------------------------------------
@@ -64,8 +64,8 @@ CREATE TABLE `dosen` (
 --
 
 INSERT INTO `dosen` (`id_dosen`, `nama`, `nip`, `program_studi`, `username`, `password`) VALUES
-(1, 'Azwar', '241011053', 'Ilmu Komputer', '241011053', '241011053'),
-(2, 'anonim', '241011002', 'Ilmu Komputer', '241011001', '241011001');
+(3, 'Hacker', '1435131551', 'Teknik Elektro', 'dosen1', '$2y$10$cdiqc2B6RCi3pL1NzmoIfOx4X.hdZsGP37NjTg8FYuGC77.hjL1Yq'),
+(4, 'Azwar', '241011053', 'Matematika', 'dosen2', '$2y$10$dhOrRoM5E1ZDkQ0J0TxfmOf51CEQdwJK1ms5zkDmPLr065sD5alAG');
 
 -- --------------------------------------------------------
 
@@ -89,7 +89,12 @@ CREATE TABLE `kehadiran` (
 INSERT INTO `kehadiran` (`id_kehadiran`, `id_mahasiswa`, `ip_device`, `timestamp_hadir`, `keterangan`, `id_sesi`) VALUES
 (1, 1, '192.168.1.1', '2024-05-20 08:00:00', 'Hadir', NULL),
 (2, 1, '192.168.1.1', '2024-05-21 08:05:00', 'Hadir', NULL),
-(3, 1, '192.168.1.1', '2024-05-22 08:30:00', 'Terlambat', NULL);
+(3, 1, '192.168.1.1', '2024-05-22 08:30:00', 'Terlambat', NULL),
+(4, 1, '10.37.30.181', '2026-06-29 13:33:08', 'Hadir', 28),
+(5, 179, '::1', '2026-06-29 13:34:36', 'Hadir', 28),
+(6, 179, '10.37.30.204', '2026-06-29 13:35:50', 'Hadir', 29),
+(7, 1, '::1', '2026-06-29 13:55:29', 'Hadir', 32),
+(8, 1, '::1', '2026-06-29 14:07:23', 'Hadir', 33);
 
 -- --------------------------------------------------------
 
@@ -138,12 +143,13 @@ CREATE TABLE `mahasiswa` (
 --
 
 INSERT INTO `mahasiswa` (`id_mahasiswa`, `nama`, `nim`, `angkatan`, `username`, `password`, `program_studi`) VALUES
-(1, 'steven', '241011078', 2024, '241011078', '241011078', 'ilmu komputer'),
-(174, 'Budi Santoso', '241011001', 2024, '241011001', '241011001', 'ilmu komputer'),
-(176, 'Citra Lestari', '241011003', 2024, '241011003', '241011003', 'ilmu komputer'),
-(177, 'Dedi Prasetyo', '241011004', 2024, '241011004', '241011004', 'ilmu komputer'),
-(178, 'Elisa Fitri', '241011005', 2024, '241011005', '241011005', 'ilmu komputer'),
-(179, 'Geri Setiadi', '241011006', 2024, '241011006', '241011006', 'ilmu komputer');
+(180, 'Elisa Steven Tandilo', '241011078', 2024, '241011078', '$2y$10$6wXTbodkOYU6YWeHg.Tghu2nsLmUUvd/6Y2Ra1u1p.e997heNfNWy', 'Ilmu Komputer'),
+(181, 'Naufal', '241011128', 2024, '241011128', '$2y$10$UIf8ejc1sNyWoH1zEkf0BOGdPZbMRGWe2pmtizFlqATnz8.d05iXK', 'Informatika'),
+(182, 'Akmal', '241011124', 2024, '241011124', '$2y$10$6sRZyXwk0i4IFFkgXZFP/.rNzGkxXO/unVcJZeZW1Mrqc4fOHAO1u', 'Sistem Informasi'),
+(183, 'Rezky', '241011106', 2024, '241011106', '$2y$10$IeBOanK5lL3V4IvDocILSOBzd9RP2.OFPFBnRIv.yks36.gD0Dxom', 'Ilmu Komputer'),
+(184, 'Habel', '241011110', 2024, '241011110', '$2y$10$kj804xXs4mi.virKLqDJOeEl0uqI9RvsByFuaycymySIrZxT/mC22', 'Sistem Informasi'),
+(185, 'Yosia', '241011098', 2024, '241011098', '$2y$10$9duDMITsvbOMzN3dSh/zKOTelbYEjaI.MQ76dLbWYfgASPUnjwvKa', 'Sistem Informasi'),
+(186, 'Steff', '241011001', 2024, '241011001', '$2y$10$abQYyk9yoWG.9RA.Jwc0rOJjKmq9ccJE176CvxRcx0jesp4nl0ROq', 'Sistem Informasi');
 
 -- --------------------------------------------------------
 
@@ -194,19 +200,10 @@ CREATE TABLE `sesi_absensi` (
 --
 
 INSERT INTO `sesi_absensi` (`id_sesi`, `waktu_mulai`, `waktu_selesai`, `status`, `qr_code_token`, `kode_manual`, `pertemuan_ke`, `id_matkul`, `id_kelas`, `id_dosen`, `durasi`) VALUES
-(1, '2026-06-10 05:55:05', '2026-06-10 06:10:05', 'Selesai', '23277c530753680536a155998abe0af5', NULL, 4, 3, 3, 1, 15),
-(2, '2026-06-10 05:55:06', '2026-06-10 06:10:06', 'Selesai', '0baeefad4f374a07eda860822bb98774', NULL, 4, 3, 3, 1, 15),
-(3, '2026-06-10 05:55:06', '2026-06-10 06:10:06', 'Selesai', 'f472cd81258661a98e0bc00f3133bda5', NULL, 4, 3, 3, 1, 15),
-(4, '2026-06-10 05:55:07', '2026-06-10 06:10:07', 'Selesai', '448f6d3e5f2f735b8e02e584da06b978', NULL, 4, 3, 3, 1, 15),
-(9, '2026-06-22 04:46:47', '2026-06-22 05:01:47', 'Selesai', '839cfa7f22026944b8759edbec64feb0', 'XP2VUE', 1, 1, 3, 1, 15),
-(10, '2026-06-22 04:47:39', '2026-06-22 05:12:39', 'Selesai', 'b7c62980dac93bff5eb5be617c8d8074', 'T5LX3S', 1, 1, 3, 1, 15),
-(13, '2026-06-22 04:50:43', '2026-06-22 05:05:43', 'Selesai', 'e817cd9646902f479d050c22e41601f3', 'VUH695', 1, 1, 3, 1, 15),
-(14, '2026-06-22 04:51:17', '2026-06-22 05:06:17', 'Selesai', '148f89b417f156f9a038cf887b269c3e', '8CJ0BI', 1, 1, 2, 1, 15),
-(15, '2026-06-22 04:58:39', '2026-06-22 05:13:39', 'Selesai', '9faecf0108c6a661f3992ef3e1313499', 'O92K6Y', 1, 1, 2, 1, 15),
-(16, '2026-06-22 05:18:52', '2026-06-22 05:33:52', 'Selesai', 'fa01865e4249cbc8f8f8116aa0bd0316', '8A7E4I', 1, 1, 3, 1, 15),
-(18, '2026-06-22 05:19:40', '2026-06-22 05:34:40', 'Selesai', '4f6f485434dd5c5da7f98582346a5da1', 'Z7O1GA', 1, 1, 2, 1, 15),
-(19, '2026-06-22 05:25:58', '2026-06-22 05:40:58', 'Selesai', '3fae0302fa0d70f13d230af8dfacf55f', 'OFVYDL', 1, 1, 2, 1, 15),
-(20, '2026-06-22 05:26:14', '2026-06-22 05:41:14', 'Selesai', '891a85c27f56c9d96f49297f720f211b', 'LN95JO', 1, 1, 4, 1, 15);
+(28, '2026-06-29 13:32:57', '2026-06-29 13:47:57', 'Selesai', 'f25819647384f0fe33579a365e2f4e9f', 'S0FZ8E', 1, 1, 2, 1, 15),
+(29, '2026-06-29 13:35:40', '2026-06-29 13:50:40', 'Selesai', 'bcfbabd7438e7b0373bb482526086562', 'JT293Y', 1, 1, 2, 1, 15),
+(32, '2026-06-29 13:55:24', '2026-06-29 14:10:24', 'Selesai', '6fc0ce8a05d4e530a0d4d537c7520e04', 'F20GRC', 1, 1, 2, 1, 15),
+(33, '2026-06-29 14:07:19', '2026-06-29 14:22:19', 'Selesai', '9e57ea206728ddd053c764e7d0ef8c12', 'IK0YWT', 1, 1, 2, 1, 15);
 
 --
 -- Indexes for dumped tables
@@ -271,13 +268,13 @@ ALTER TABLE `admin`
 -- AUTO_INCREMENT untuk tabel `dosen`
 --
 ALTER TABLE `dosen`
-  MODIFY `id_dosen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id_dosen` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT untuk tabel `kehadiran`
 --
 ALTER TABLE `kehadiran`
-  MODIFY `id_kehadiran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id_kehadiran` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT untuk tabel `kelas`
@@ -289,7 +286,7 @@ ALTER TABLE `kelas`
 -- AUTO_INCREMENT untuk tabel `mahasiswa`
 --
 ALTER TABLE `mahasiswa`
-  MODIFY `id_mahasiswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=180;
+  MODIFY `id_mahasiswa` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=187;
 
 --
 -- AUTO_INCREMENT untuk tabel `mata_kuliah`
@@ -301,7 +298,7 @@ ALTER TABLE `mata_kuliah`
 -- AUTO_INCREMENT untuk tabel `sesi_absensi`
 --
 ALTER TABLE `sesi_absensi`
-  MODIFY `id_sesi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=21;
+  MODIFY `id_sesi` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=34;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
