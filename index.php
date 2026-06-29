@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'connection.php';
+include'connection.php';
 
 $error = '';
 
@@ -8,76 +8,106 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = mysqli_real_escape_string($conn, trim($_POST['nim']));
     $password = $_POST['password'];
 
-    $user = null;
-    $role = '';
-
-    // Cek Admin
-    $query = "SELECT * FROM admin WHERE username='$username'";
+    // Cek di tabel admin dulu (prioritas)
+    $query = "SELECT * FROM admin WHERE username = '$username'";
     $result = mysqli_query($conn, $query);
     if ($result && mysqli_num_rows($result) > 0) {
-        $user = mysqli_fetch_assoc($result);
-        if ($password === $user['password']) {
-            $role = 'admin';
+        $row = mysqli_fetch_assoc($result);
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE admin SET password='$hashed' WHERE id_admin=".$row['id_admin'];
+            mysqli_query($conn, $update_hash);
         }
-    }
+        
+        if ($is_valid) {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['id_user'] = $row['id_admin'];
+            $_SESSION['nama'] = $row['nama'];
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = $row['role'] ?? 'admin';
+            $_SESSION['jabatan'] = $row['jabatan'];
 
-    // Cek Dosen
-    if (!$user) {
-        $query = "SELECT * FROM dosen WHERE username='$username'";
-        $result = mysqli_query($conn, $query);
-        if ($result && mysqli_num_rows($result) > 0) {
-            $user = mysqli_fetch_assoc($result);
-            if ($password === $user['password']) {
-                $role = 'dosen';
+            if ($_SESSION['role'] === 'super_admin') {
+                header('Location: dashboard_super.php');
+            } else {
+                header('Location: dashboard_admin.php');
             }
+            exit;
         }
     }
 
-    // Cek Mahasiswa
-    if (!$user) {
-        $query = "SELECT * FROM mahasiswa WHERE username='$username' OR nim='$username'";
-        $result = mysqli_query($conn, $query);
-        if ($result && mysqli_num_rows($result) > 0) {
-            $user = mysqli_fetch_assoc($result);
-            if ($password === $user['password']) {
-                $role = 'mahasiswa';
-            }
+    // Cek dosen
+    $query = "SELECT * FROM dosen WHERE username = '$username'";
+    $result = mysqli_query($conn, $query);
+    if ($result && mysqli_num_rows($result) > 0) {
+        $row = mysqli_fetch_assoc($result);
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE dosen SET password='$hashed' WHERE id_dosen=".$row['id_dosen'];
+            mysqli_query($conn, $update_hash);
         }
-    }
-
-    if ($user && $role) {
-        $_SESSION['logged_in'] = true;
-        $_SESSION['id_user'] = $user['id_admin'] ?? $user['id_dosen'] ?? $user['id_mahasiswa'];
-        $_SESSION['nama'] = $user['nama'];
-        $_SESSION['username'] = $user['username'];
-        $_SESSION['nim'] = $user['nim'] ?? '-';
-        $_SESSION['role'] = $role;
-
-        if ($role === 'admin') {
-            header('Location: dashboard_admin.php');
-        } elseif ($role === 'dosen') {
+        
+        if ($is_valid) {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['id_user'] = $row['id_dosen'];
+            $_SESSION['nama'] = $row['nama'];
+            $_SESSION['username'] = $row['username'];
+            $_SESSION['role'] = 'dosen';
             header('Location: dashboard_dosen.php');
-        } else {
-            header('Location: dashboard_mhs.php');
+            exit;
         }
-        exit;
-    } else {
-        $error = 'Username/NIM atau password salah.';
     }
+
+    // Cek mahasiswa
+    $query = "SELECT * FROM mahasiswa WHERE username = '$username' OR nim = '$username'";
+    $result = mysqli_query($conn, $query);
+    if ($result && mysqli_num_rows($result) > 0) {
+        $row = mysqli_fetch_assoc($result);
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE mahasiswa SET password='$hashed' WHERE id_mahasiswa=".$row['id_mahasiswa'];
+            mysqli_query($conn, $update_hash);
+        }
+        
+        if ($is_valid) {
+            $_SESSION['logged_in'] = true;
+            $_SESSION['id_user'] = $row['id_mahasiswa'];
+            $_SESSION['nama'] = $row['nama'];
+            $_SESSION['nim'] = $row['nim'];
+            $_SESSION['role'] = 'mahasiswa';
+            header('Location: dashboard.php');
+            exit;
+        }
+    }
+
+    $error = 'Username/NIM atau password salah.';
 }
 
+// Proteksi: jika sudah login, redirect otomatis
 if (isset($_SESSION['logged_in']) && $_SESSION['logged_in']) {
-    if ($_SESSION['role'] === 'admin') {
-        header('Location: dashboard_admin.php');
-    } elseif ($_SESSION['role'] === 'dosen') {
-        header('Location: dashboard_dosen.php');
-    } else {
-        header('Location: dashboard.php');
-    }
+    $role = $_SESSION['role'] ?? 'mahasiswa';
+    if ($role === 'super_admin') header('Location: dashboard_super.php');
+    elseif ($role === 'admin') header('Location: dashboard_admin.php');
+    elseif ($role === 'dosen') header('Location: dashboard_dosen.php');
+    else header('Location: dashboard.php');
     exit;
 }
 ?>
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
