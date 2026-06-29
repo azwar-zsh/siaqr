@@ -12,14 +12,9 @@ $id_dosen = $_SESSION['id_user'] ?? 0;
 $nama_dosen = $_SESSION['nama'] ?? 'Dosen';
 
 // Ambil data mata kuliah yang diajar dosen
-$query_matkul = "SELECT DISTINCT mk.id_matkul, mk.kode_matkul, mk.nama_matkul 
-                 FROM mata_kuliah mk
-                 JOIN kelas k ON mk.id_matkul = k.id_matkul
-                 WHERE k.id_dosen = ? OR mk.id_matkul IN (
-                     SELECT id_matkul FROM sesi_absensi WHERE id_dosen = ?
-                 )";
+// Mengambil semua data mata kuliah tanpa filter ID Dosen
+$query_matkul = "SELECT id_matkul, kode_matkul, nama_matkul FROM mata_kuliah ORDER BY nama_matkul ASC";
 $stmt = mysqli_prepare($conn, $query_matkul);
-mysqli_stmt_bind_param($stmt, "ii", $id_dosen, $id_dosen);
 mysqli_stmt_execute($stmt);
 $result_matkul = mysqli_stmt_get_result($stmt);
 $matkul_list = [];
@@ -28,13 +23,13 @@ while ($row = mysqli_fetch_assoc($result_matkul)) {
 }
 
 // Ambil data kelas beserta jumlah mahasiswanya (Diubah agar dinamis)
+// Ambil data kelas beserta jumlah mahasiswanya tanpa filter ID Dosen
 $query_kelas = "SELECT k.id_kelas, k.nama_kelas, k.tahun_akademik, 
-                       (SELECT COUNT(*) FROM mahasiswa m WHERE m.program_studi = k.program_studi) as total_mhs
+                    (SELECT COUNT(*) FROM mahasiswa m WHERE m.program_studi = k.program_studi) as total_mhs
                 FROM kelas k 
-                WHERE k.id_dosen = ? OR k.id_dosen IS NULL
                 ORDER BY k.nama_kelas";
 $stmt = mysqli_prepare($conn, $query_kelas);
-mysqli_stmt_bind_param($stmt, "i", $id_dosen);
+// Baris mysqli_stmt_bind_param dihapus karena tanda tanya (?) dihilangkan dari query
 mysqli_stmt_execute($stmt);
 $result_kelas = mysqli_stmt_get_result($stmt);
 $kelas_list = [];
