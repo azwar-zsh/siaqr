@@ -13,15 +13,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = mysqli_query($conn, $query);
     if ($result && mysqli_num_rows($result) > 0) {
         $row = mysqli_fetch_assoc($result);
-        if ($password === $row['password']) {
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE admin SET password='$hashed' WHERE id_admin=".$row['id_admin'];
+            mysqli_query($conn, $update_hash);
+        }
+        
+        if ($is_valid) {
             $_SESSION['logged_in'] = true;
             $_SESSION['id_user'] = $row['id_admin'];
             $_SESSION['nama'] = $row['nama'];
             $_SESSION['username'] = $row['username'];
-            $_SESSION['role'] = $row['role'] ?? 'admin'; // default 'admin'
+            $_SESSION['role'] = $row['role'] ?? 'admin';
             $_SESSION['jabatan'] = $row['jabatan'];
 
-            // Redirect berdasarkan role
             if ($_SESSION['role'] === 'super_admin') {
                 header('Location: dashboard_super.php');
             } else {
@@ -36,7 +46,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = mysqli_query($conn, $query);
     if ($result && mysqli_num_rows($result) > 0) {
         $row = mysqli_fetch_assoc($result);
-        if ($password === $row['password']) {
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE dosen SET password='$hashed' WHERE id_dosen=".$row['id_dosen'];
+            mysqli_query($conn, $update_hash);
+        }
+        
+        if ($is_valid) {
             $_SESSION['logged_in'] = true;
             $_SESSION['id_user'] = $row['id_dosen'];
             $_SESSION['nama'] = $row['nama'];
@@ -52,7 +73,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = mysqli_query($conn, $query);
     if ($result && mysqli_num_rows($result) > 0) {
         $row = mysqli_fetch_assoc($result);
-        if ($password === $row['password']) {
+        $is_valid = false;
+        
+        if (password_verify($password, $row['password'])) {
+            $is_valid = true;
+        } elseif ($password === $row['password']) {
+            $is_valid = true;
+            $hashed = password_hash($password, PASSWORD_DEFAULT);
+            $update_hash = "UPDATE mahasiswa SET password='$hashed' WHERE id_mahasiswa=".$row['id_mahasiswa'];
+            mysqli_query($conn, $update_hash);
+        }
+        
+        if ($is_valid) {
             $_SESSION['logged_in'] = true;
             $_SESSION['id_user'] = $row['id_mahasiswa'];
             $_SESSION['nama'] = $row['nama'];

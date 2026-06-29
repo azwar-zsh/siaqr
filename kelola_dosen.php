@@ -4,7 +4,7 @@ require 'connection.php';
 
 // Proteksi: Wajib login & role admin
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'admin') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -23,7 +23,8 @@ if (isset($_POST['tambah_dosen'])) {
         $password = $username;
     }
     
-    // Cek apakah NIP sudah ada
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+    
     $cek = $conn->prepare("SELECT nip FROM dosen WHERE nip = ?");
     $cek->bind_param("s", $nip);
     $cek->execute();
@@ -31,7 +32,7 @@ if (isset($_POST['tambah_dosen'])) {
         $_SESSION['error'] = "Gagal: Dosen dengan NIP $nip sudah terdaftar!";
     } else {
         $stmt = $conn->prepare("INSERT INTO dosen (nama, nip, program_studi, username, password) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssss", $nama, $nip, $prodi, $username, $password);
+        $stmt->bind_param("sssss", $nama, $nip, $prodi, $username, $hashed_password);
         if ($stmt->execute()) {
             $_SESSION['success'] = "Data dosen berhasil ditambahkan!";
         } else {

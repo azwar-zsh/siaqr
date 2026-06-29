@@ -2,45 +2,72 @@
 session_start();
 require_once 'connection.php';
 
+// Proteksi akses hanya untuk mahasiswa
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'mahasiswa') { 
-    header('Location: login.php'); 
+    header('Location: index.php'); 
     exit; 
 }
+
 $id_mahasiswa = $_SESSION['id_user']; 
 $prodi_mahasiswa = $_SESSION['program_studi'] ?? ''; 
 
 // ==========================================
 // QUERY 1: REKAP MATKUL
 // ==========================================
-$query_matkul = "SELECT mk.nama_matkul, k.ruangan, COUNT(DISTINCT sa.id_sesi) as total_sesi, COUNT(DISTINCT kh.id_sesi) as total_hadir FROM kelas k JOIN mata_kuliah mk ON k.id_matkul = mk.id_matkul JOIN sesi_absensi sa ON k.id_kelas = sa.id_kelas LEFT JOIN kehadiran kh ON sa.id_sesi = kh.id_sesi AND kh.id_mahasiswa = ? WHERE k.program_studi = ? OR k.program_studi = '' GROUP BY mk.id_matkul";
+// PERBAIKAN: JOIN dimulai dari sesi_absensi karena sesi_absensi yang memiliki id_kelas dan id_matkul
+$query_matkul = "SELECT 
+                    mk.nama_matkul, 
+                    k.ruangan, 
+                    COUNT(DISTINCT sa.id_sesi) as total_sesi, 
+                    COUNT(DISTINCT kh.id_sesi) as total_hadir 
+                 FROM sesi_absensi sa 
+                 JOIN kelas k ON sa.id_kelas = k.id_kelas 
+                 JOIN mata_kuliah mk ON sa.id_matkul = mk.id_matkul 
+                 LEFT JOIN kehadiran kh ON sa.id_sesi = kh.id_sesi AND kh.id_mahasiswa = ? 
+                 WHERE k.program_studi = ? OR k.program_studi = '' 
+                 GROUP BY mk.id_matkul";
+
 $stmt_mk = mysqli_prepare($conn, $query_matkul); 
 mysqli_stmt_bind_param($stmt_mk, "is", $id_mahasiswa, $prodi_mahasiswa); 
 mysqli_stmt_execute($stmt_mk);
 
-// PERBAIKAN: Ambil result sekali saja
 $result_mk = mysqli_stmt_get_result($stmt_mk);
 $rekap_matkul = []; 
 while ($row = mysqli_fetch_assoc($result_mk)) { 
     $rekap_matkul[] = $row; 
 }
-// PERBAIKAN: Tutup statement agar tidak terjadi out of sync
 mysqli_stmt_close($stmt_mk); 
 
 // ==========================================
-// QUERY 2: RIWAYAT DETAIL
+// QUERY 2: RIWAYAT DETAIL (Sesi yang sudah Selesai)
 // ==========================================
-$query_history = "SELECT sa.waktu_mulai, mk.nama_matkul, kh.timestamp_hadir, kh.keterangan FROM sesi_absensi sa JOIN kelas k ON sa.id_kelas = k.id_kelas JOIN mata_kuliah mk ON k.id_matkul = mk.id_matkul LEFT JOIN kehadiran kh ON sa.id_sesi = kh.id_sesi AND kh.id_mahasiswa = ? WHERE (k.program_studi = ? OR k.program_studi = '') AND sa.status = 'Selesai' ORDER BY sa.waktu_mulai DESC LIMIT 10";
+// PERBAIKAN: Struktur JOIN disesuaikan agar relasi antar tabel valid
+// ==========================================
+// QUERY 2: RIWAYAT DETAIL 
+// ==========================================
+$query_history = "SELECT 
+                    sa.waktu_mulai, 
+                    mk.nama_matkul, 
+                    kh.timestamp_hadir, 
+                    kh.keterangan 
+                    FROM sesi_absensi sa 
+                    JOIN kelas k ON sa.id_kelas = k.id_kelas 
+                    JOIN mata_kuliah mk ON sa.id_matkul = mk.id_matkul 
+                    LEFT JOIN kehadiran kh ON sa.id_sesi = kh.id_sesi AND kh.id_mahasiswa = ? 
+                    WHERE (k.program_studi = ? OR k.program_studi = '') 
+                    AND sa.status IN ('Aktif', 'Selesai') 
+                    ORDER BY sa.waktu_mulai DESC 
+                    LIMIT 10";
+
 $stmt_hist = mysqli_prepare($conn, $query_history); 
 mysqli_stmt_bind_param($stmt_hist, "is", $id_mahasiswa, $prodi_mahasiswa); 
 mysqli_stmt_execute($stmt_hist);
 
-// PERBAIKAN: Ambil result sekali saja
 $result_hist = mysqli_stmt_get_result($stmt_hist);
 $riwayat_detail = []; 
 while ($row = mysqli_fetch_assoc($result_hist)) { 
     $riwayat_detail[] = $row; 
 }
-// PERBAIKAN: Tutup statement
 mysqli_stmt_close($stmt_hist);
 ?>
 <!DOCTYPE html>
@@ -86,7 +113,7 @@ mysqli_stmt_close($stmt_hist);
         .mc-title p { font-size: 0.75rem; color: #6b7280; margin-top: 0.2rem;}
         .mc-percentage { font-size: 0.9rem; font-weight: 800; }
         .progress-bg { background-color: #e5e7eb; height: 6px; border-radius: 3px; width: 100%; margin-bottom: 0.5rem; }
-        .progress-fill { height: 100%; border-radius: 3px; }
+        .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
         .mc-footer { display: flex; justify-content: space-between; font-size: 0.75rem; color: #6b7280; }
 
         .history-header { display: flex; justify-content: space-between; align-items: center; margin: 2rem 0 1rem; font-size: 0.85rem; font-weight: 700;}
@@ -102,6 +129,7 @@ mysqli_stmt_close($stmt_hist);
         .hist-status { font-size: 0.75rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 1rem; }
         .status-hadir { background: #dcfce7; color: #16a34a; }
         .status-absen { background: #fee2e2; color: #ef4444; }
+        .status-izin { background: #fef3c7; color: #d97706; } /* Tambahan untuk status Izin/Sakit */
 
         /* BOTTOM NAV (MOBILE) */
         .bottom-nav { display: none; position: fixed; bottom: 0; width: 100%; background: #ffffff; border-top: 1px solid #e5e7eb; padding: 0.75rem 2rem; justify-content: space-between; z-index: 100; }
@@ -122,7 +150,15 @@ mysqli_stmt_close($stmt_hist);
             <div class="sidebar-header">
                 <div class="logo-icon">
                     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="4" y="4" width="14" height="14" rx="2" fill="#E8670A"/><rect x="26" y="4" width="14" height="14" rx="2" fill="#E8670A"/><rect x="4" y="26" width="14" height="14" rx="2" fill="#E8670A"/><rect x="26" y="26" width="6" height="6" rx="1" fill="#E8670A"/><rect x="34" y="26" width="6" height="6" rx="1" fill="#E8670A"/><rect x="26" y="34" width="6" height="6" rx="1" fill="#E8670A"/>
+                        <rect x="4" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="4" y="26" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="34" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="26" y="34" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="7" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="29" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="7" y="29" width="8" height="8" rx="1" fill="#E8670A"/>
                     </svg>
                 </div>
                 <div class="logo-text"><span class="logo-title">Portal SIAQR</span><span class="logo-subtitle">Area Mahasiswa</span></div>
@@ -146,40 +182,89 @@ mysqli_stmt_close($stmt_hist);
                 <select class="filter-select"><option>Semester 4 (Genap)</option></select>
                 <select class="filter-select"><option>Semua Mata Kuliah</option></select>
             </div>
-            <?php foreach ($rekap_matkul as $mk): 
-                $persen = $mk['total_sesi'] > 0 ? round(($mk['total_hadir'] / $mk['total_sesi']) * 100) : 0;
-                $isAman = $persen >= 75; $color = $isAman ? '#16a34a' : '#e8670a'; $status = $isAman ? 'Aman' : 'Perhatian';
-            ?>
-            <div class="matkul-card">
-                <div class="mc-header">
-                    <div class="mc-title"><h4><?= htmlspecialchars($mk['nama_matkul']) ?></h4><p><?= htmlspecialchars($mk['ruangan'] ?? 'Ruangan belum diatur') ?></p></div>
-                    <span class="mc-percentage" style="color: <?= $color ?>"><?= $persen ?>%</span>
+            
+            <?php if (empty($rekap_matkul)): ?>
+                <p style="text-align: center; color: #6b7280; padding: 2rem;">Belum ada jadwal mata kuliah untuk program studi Anda.</p>
+            <?php else: ?>
+                <?php foreach ($rekap_matkul as $mk): 
+                    $persen = $mk['total_sesi'] > 0 ? round(($mk['total_hadir'] / $mk['total_sesi']) * 100) : 0;
+                    $isAman = $persen >= 75; 
+                    $color = $isAman ? '#16a34a' : '#e8670a'; 
+                    $status = $isAman ? 'Aman' : 'Perhatian';
+                ?>
+                <div class="matkul-card">
+                    <div class="mc-header">
+                        <div class="mc-title">
+                            <h4><?= htmlspecialchars($mk['nama_matkul']) ?></h4>
+                            <p><?= htmlspecialchars($mk['ruangan'] ?? 'Ruangan belum diatur') ?></p>
+                        </div>
+                        <span class="mc-percentage" style="color: <?= $color ?>"><?= $persen ?>%</span>
+                    </div>
+                    <div class="progress-bg">
+                        <div class="progress-fill" style="width: <?= $persen ?>%; background-color: <?= $color ?>;"></div>
+                    </div>
+                    <div class="mc-footer">
+                        <span>Kehadiran: <?= $mk['total_hadir'] ?>/<?= $mk['total_sesi'] ?> Sesi</span>
+                        <strong style="color: <?= $color ?>; display: flex; align-items: center; gap: 4px;">
+                            <?= !$isAman ? '⚠️ ' : '✅ ' ?><?= $status ?>
+                        </strong>
+                    </div>
                 </div>
-                <div class="progress-bg"><div class="progress-fill" style="width: <?= $persen ?>%; background-color: <?= $color ?>;"></div></div>
-                <div class="mc-footer">
-                    <span>Kehadiran: <?= $mk['total_hadir'] ?>/<?= $mk['total_sesi'] ?></span>
-                    <strong style="color: <?= $color ?>; display: flex; align-items: center; gap: 4px;"><?= !$isAman ? '⚠️ ' : '✅ ' ?><?= $status ?></strong>
-                </div>
-            </div>
-            <?php endforeach; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
 
-            <div class="history-header"><span>Riwayat Detail</span><a href="#">LIHAT SEMUA</a></div>
-            <?php if(empty($riwayat_detail)): ?><p style="text-align: center; color: #6b7280; font-size: 0.85rem; padding: 2rem;">Belum ada riwayat kehadiran.</p>
-            <?php else: foreach ($riwayat_detail as $hist): 
-                    $isHadir = !empty($hist['keterangan']); $status_text = $isHadir ? 'Hadir' : 'Absen'; $status_class = $isHadir ? 'status-hadir' : 'status-absen';
+            <div class="history-header">
+                <span>Riwayat Detail</span>
+                <a href="#">LIHAT SEMUA</a>
+            </div>
+            
+            <?php if(empty($riwayat_detail)): ?>
+                <p style="text-align: center; color: #6b7280; font-size: 0.85rem; padding: 2rem;">Belum ada riwayat kehadiran.</p>
+            <?php else: ?>
+                <?php foreach ($riwayat_detail as $hist): 
+                    // Logika deteksi status (Hadir, Izin, Sakit, atau Absen)
+                    if (!empty($hist['keterangan'])) {
+                        $ket = strtolower($hist['keterangan']);
+                        if (in_array($ket, ['izin', 'sakit'])) {
+                            $status_text = ucfirst($ket);
+                            $status_class = 'status-izin';
+                        } else {
+                            $status_text = 'Hadir';
+                            $status_class = 'status-hadir';
+                        }
+                    } else {
+                        $status_text = 'Absen'; 
+                        $status_class = 'status-absen';
+                    }
                 ?>
                 <div class="history-item">
-                    <div class="date-badge"><span><?= date('M', strtotime($hist['waktu_mulai'])) ?></span><span><?= date('d', strtotime($hist['waktu_mulai'])) ?></span></div>
-                    <div class="hist-info"><h5><?= htmlspecialchars($hist['nama_matkul']) ?></h5><p><?= $status_text ?> • <?= date('H:i', strtotime($hist['waktu_mulai'])) ?> WIB</p></div>
+                    <div class="date-badge">
+                        <span><?= date('M', strtotime($hist['waktu_mulai'])) ?></span>
+                        <span><?= date('d', strtotime($hist['waktu_mulai'])) ?></span>
+                    </div>
+                    <div class="hist-info">
+                        <h5><?= htmlspecialchars($hist['nama_matkul']) ?></h5>
+                        <p><?= $status_text ?> • <?= date('H:i', strtotime($hist['waktu_mulai'])) ?> WIB</p>
+                    </div>
                     <div class="hist-status <?= $status_class ?>"><?= $status_text ?></div>
                 </div>
-            <?php endforeach; endif; ?>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </main>
         
         <div class="bottom-nav">
-            <a href="dashboard.php" class="nav-bottom-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
-            <a href="riwayat_mhs.php" class="nav-bottom-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Riwayat</a>
-            <a href="profil_mhs.php" class="nav-bottom-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Profil</a>
+            <a href="dashboard.php" class="nav-bottom-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                Dashboard
+            </a>
+            <a href="riwayat_mhs.php" class="nav-bottom-item active">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                Riwayat
+            </a>
+            <a href="profil_mhs.php" class="nav-bottom-item">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                Profil
+            </a>
         </div>
     </div>
 </body>

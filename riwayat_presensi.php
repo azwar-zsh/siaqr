@@ -4,11 +4,12 @@ require_once 'connection.php';
 
 // Proteksi: hanya dosen yang boleh akses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'dosen') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
-$id_dosen = $_SESSION['id_user'] ?? 0;
+// Menyelaraskan dengan database: memeriksa id_dosen atau id_user dari session login
+$id_dosen = $_SESSION['id_dosen'] ?? $_SESSION['id_user'] ?? 0;
 
 // ============================================
 // LOGIKA AKSI (Hapus & Unduh)
@@ -18,9 +19,10 @@ if (isset($_GET['aksi']) && isset($_GET['id'])) {
     $aksi = $_GET['aksi'];
 
     if ($aksi === 'hapus') {
-        // Hapus data kehadiran terkait dulu
+        // 1. Hapus data kehadiran terkait dulu (Foreign Key Manual)
         mysqli_query($conn, "DELETE FROM kehadiran WHERE id_sesi = $id_sesi");
-        // Hapus sesi
+        
+        // 2. Hapus sesi absensi milik dosen yang bersangkutan
         $q = "DELETE FROM sesi_absensi WHERE id_sesi = $id_sesi AND id_dosen = $id_dosen";
         mysqli_query($conn, $q);
     } 
@@ -45,7 +47,16 @@ if (isset($_GET['aksi']) && isset($_GET['id'])) {
         exit;
     }
 
-    header("Location: riwayat_presensi.php" . (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING']) ? '?' . preg_replace('/[&?]aksi=[^&]*/', '', $_SERVER['QUERY_STRING']) : ''));
+    // PERBAIKAN UTAMA: Membersihkan query string dari parameter aksi & id secara aman menggunakan http_build_query
+    $url_params = $_GET;
+    unset($url_params['aksi'], $url_params['id']);
+    
+    $redirect_url = "riwayat_presensi.php";
+    if (!empty($url_params)) {
+        $redirect_url .= '?' . http_build_query($url_params);
+    }
+    
+    header("Location: " . $redirect_url);
     exit;
 }
 
@@ -155,61 +166,6 @@ while ($row = mysqli_fetch_assoc($result)) {
     $riwayat_sesi[] = $row;
 }
 
-// Fallback data jika kosong
-if (empty($riwayat_sesi) && $total_records == 0) {
-    $riwayat_sesi = [
-        [
-            'id_sesi' => 1,
-            'waktu_mulai' => '2026-05-12 08:00:00',
-            'waktu_selesai' => '2026-05-12 10:30:00',
-            'status' => 'Selesai',
-            'pertemuan_ke' => 10,
-            'nama_matkul' => 'Pemrograman Web',
-            'kode_matkul' => 'MK401',
-            'nama_kelas' => 'IK24-A',
-            'jumlah_hadir' => 38,
-            'total_mahasiswa' => 49
-        ],
-        [
-            'id_sesi' => 2,
-            'waktu_mulai' => '2026-05-11 10:30:00',
-            'waktu_selesai' => '2026-05-11 13:10:00',
-            'status' => 'Selesai',
-            'pertemuan_ke' => 9,
-            'nama_matkul' => 'Struktur Data',
-            'kode_matkul' => 'MK405',
-            'nama_kelas' => 'IK24-B',
-            'jumlah_hadir' => 28,
-            'total_mahasiswa' => 34
-        ],
-        [
-            'id_sesi' => 3,
-            'waktu_mulai' => '2026-05-09 10:00:00',
-            'waktu_selesai' => '2026-05-09 11:40:00',
-            'status' => 'Selesai',
-            'pertemuan_ke' => 8,
-            'nama_matkul' => 'Sistem Operasi',
-            'kode_matkul' => 'MK404',
-            'nama_kelas' => 'IK24-B',
-            'jumlah_hadir' => 28,
-            'total_mahasiswa' => 40
-        ],
-        [
-            'id_sesi' => 4,
-            'waktu_mulai' => '2026-05-05 08:00:00',
-            'waktu_selesai' => '2026-05-05 10:30:00',
-            'status' => 'Selesai',
-            'pertemuan_ke' => 7,
-            'nama_matkul' => 'Basis Data Lanjut',
-            'kode_matkul' => 'MK403',
-            'nama_kelas' => 'IK24-A',
-            'jumlah_hadir' => 40,
-            'total_mahasiswa' => 48
-        ]
-    ];
-    $total_records = 42;
-    $total_pages = 9;
-}
 
 $active_page = 'riwayat';
 ?>
@@ -549,7 +505,7 @@ $active_page = 'riwayat';
         .status-badge.Aktif { background: #fef3c7; color: #d97706; }
         .status-badge.Batal { background: #fee2e2; color: #ef4444; }
 
-        /* Action Buttons (sama seperti dashboard) */
+        /* Action Buttons */
         .action-group {
             display: flex;
             gap: 0.25rem;
@@ -653,17 +609,19 @@ $active_page = 'riwayat';
 </head>
 <body>
     <div class="admin-wrapper">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-header">
                 <div class="logo-icon">
                     <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="4" y="4" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="26" y="4" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="4" y="26" width="14" height="14" rx="2" fill="#E8670A"/>
-                        <rect x="26" y="26" width="6" height="6" rx="1" fill="#E8670A"/>
-                        <rect x="34" y="26" width="6" height="6" rx="1" fill="#E8670A"/>
-                        <rect x="26" y="34" width="6" height="6" rx="1" fill="#E8670A"/>
+                        <rect x="4" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="4" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="4" y="26" width="14" height="14" rx="2" fill="white"/>
+                        <rect x="26" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="34" y="26" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="26" y="34" width="6" height="6" rx="1" fill="white"/>
+                        <rect x="7" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="29" y="7" width="8" height="8" rx="1" fill="#E8670A"/>
+                        <rect x="7" y="29" width="8" height="8" rx="1" fill="#E8670A"/>
                     </svg>
                 </div>
                 <div class="logo-text">
@@ -711,9 +669,7 @@ $active_page = 'riwayat';
             </div>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
-            <!-- Topbar -->
             <div class="topbar">
                 <button class="topbar-btn" title="Notifikasi">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -729,13 +685,11 @@ $active_page = 'riwayat';
                 </button>
             </div>
 
-            <!-- Page Header -->
             <div class="page-header">
                 <h1>Riwayat Presensi</h1>
                 <p>Rekapitulasi seluruh sesi perkuliahan yang telah Anda lakukan</p>
             </div>
 
-            <!-- Filter Bar -->
             <form method="GET" action="riwayat_presensi.php" class="filter-bar">
                 <div class="filter-group">
                     <label class="filter-label">Semester</label>
@@ -778,7 +732,6 @@ $active_page = 'riwayat';
                 <a href="riwayat_presensi.php" class="btn-reset">Reset</a>
             </form>
 
-            <!-- Section Header -->
             <div class="section-header">
                 <div class="section-title">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -800,7 +753,6 @@ $active_page = 'riwayat';
                 </a>
             </div>
 
-            <!-- Table -->
             <div class="table-card">
                 <div class="table-wrapper">
                     <table class="data-table">
@@ -876,7 +828,6 @@ $active_page = 'riwayat';
                     </table>
                 </div>
 
-                <!-- Pagination -->
                 <?php if ($total_records > 0): ?>
                 <div class="pagination-wrapper">
                     <div class="pagination-info">

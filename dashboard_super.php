@@ -3,7 +3,7 @@ session_start();
 include 'connection.php'; 
 // Proteksi: hanya super_admin boleh masuk
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'super_admin') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 

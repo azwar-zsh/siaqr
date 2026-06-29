@@ -4,7 +4,7 @@ require_once 'connection.php';
 
 // Proteksi: hanya mahasiswa yang boleh akses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'mahasiswa') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
@@ -19,7 +19,7 @@ $result = mysqli_stmt_get_result($stmt);
 $user = mysqli_fetch_assoc($result);
 
 if (!$user) {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 

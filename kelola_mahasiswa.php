@@ -5,7 +5,7 @@ require 'connection.php'; // Mengaktifkan koneksi ke database
 // Proteksi: Wajib login & role admin (Buka komentar di bawah ini jika halaman login admin sudah siap)
 /*
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'admin') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 */
@@ -22,17 +22,17 @@ if (isset($_POST['tambah_mahasiswa'])) {
     // Default akun: username dan password sama dengan NIM
     $username = $nim;
     $password = $nim;
+    
+    $hashed_password = password_hash($password, PASSWORD_DEFAULT);
 
-    // Cek apakah NIM sudah ada agar tidak duplikat
     $cek = $conn->prepare("SELECT nim FROM mahasiswa WHERE nim = ?");
     $cek->bind_param("s", $nim);
     $cek->execute();
     if ($cek->get_result()->num_rows > 0) {
         $_SESSION['error'] = "Gagal: Mahasiswa dengan NIM $nim sudah terdaftar!";
     } else {
-        // Simpan ke database
         $stmt = $conn->prepare("INSERT INTO mahasiswa (nama, nim, program_studi, angkatan, username, password) VALUES (?, ?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssss", $nama, $nim, $prodi, $angkatan, $username, $password);
+        $stmt->bind_param("ssssss", $nama, $nim, $prodi, $angkatan, $username, $hashed_password);
         if ($stmt->execute()) {
             $_SESSION['success'] = "Data mahasiswa $nama berhasil ditambahkan!";
         } else {

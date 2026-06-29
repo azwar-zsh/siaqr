@@ -4,7 +4,7 @@ require 'connection.php';
 
 // Proteksi Admin
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'admin') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 

@@ -4,7 +4,7 @@ require_once 'connection.php';
 
 // Proteksi: hanya dosen yang boleh akses
 if (!isset($_SESSION['logged_in']) || $_SESSION['role'] !== 'dosen') {
-    header('Location: login.php');
+    header('Location: index.php');
     exit;
 }
 
